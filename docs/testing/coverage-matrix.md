@@ -14,7 +14,7 @@ suite passed. Execution results are recorded separately in README.md.
 | --- | --- | --- | --- | --- |
 | AUTH-01 | Registration creates profile, household and one membership | `auth.test.cjs`; PGlite signup triggers | Local integration fixtures and real signup; pgTAP; Maestro confirmation-required signup | Real mail delivery is PF-EMAIL-001 |
 | AUTH-02 | Signed-in vs confirmation-required outcomes route correctly | `auth.test.cjs`, `screens.test.cjs` | Maestro against local confirmation-enabled Auth | Hosted auto-confirm path historically tested on phone |
-| AUTH-03 | Login succeeds, wrong credentials reject, feedback permits retry | Auth identity tests; historical device group 21 | Local integration rejects invalid/unconfirmed credentials; Maestro login | Native wrong-password feedback remains historical/manual |
+| AUTH-03 | Login succeeds, wrong credentials reject, feedback permits retry | Auth identity tests; historical device group 21 | Local integration rejects invalid/unconfirmed credentials; Maestro login | Maestro asserts translated wrong-password feedback and successful retry |
 | AUTH-04 | Logout clears protected state; failed logout stays recoverable | `auth.test.cjs`, `screens.test.cjs` | Local refresh-token invalidation; Maestro signed-out deep link | Access JWTs are not claimed to revoke immediately |
 | AUTH-05 | Saved session/cold restart restores identity and inventory | Auth restoration/race tests | Maestro process restart without clearing storage | Real device history retained |
 | CRUD-01 | Empty state offers add, list opens correct item | `screens.test.cjs` | Maestro empty → add → edit | Empty-state art remains visual review |
@@ -43,9 +43,10 @@ suite passed. Execution results are recorded separately in README.md.
 | DATA-04 | Paging beyond 1000 does not truncate or conceal failed pages | `pantry-data.test.cjs` | Retained | Native 1000-row scroll performance deferred |
 | NAV-01 | Pantry/settings, modals, Back and signed-out deep links | Existing screen/AuthGate/mutation checks | Maestro deep links, cancel, Android Back | Visual tab icon appearance still needs screenshot review |
 | LIFE-01 | Foreground starts token refresh; background stops it | New `lifecycle.test.cjs` | Maestro Home/foreground + cold restart | Long-duration expiry/background OS eviction deferred |
+| LIFE-02 | Device connectivity loss recovers after reconnect | Existing failed-read/write retry tests | Native REST 503/recovery through local proxy | Actual airplane-mode/network handover remains manual/deferred; no offline queue is approved |
 | I18N-01 | English, persisted locale, fallback and language-independent keys | Screen translated errors; new i18n provider checks | Local DB rejects translated enum values | German content/language UI are future slices |
 | DEVICE-01 | First category tap works with keyboard open | New RNTL native-primitives case | Maestro leaves keyboard open and DB verifies Dairy | Catches the confirmed first-tap failure |
-| DEVICE-02 | Native fonts/assets initialize without prior AppDirectories failure | SDK-compatible dependency retained | Separate native APK; Android logcat error gate; screenshots | Pixel-perfect glyph rendering remains manual; absence of errors alone is insufficient |
+| DEVICE-02 | Native fonts/assets initialize without prior AppDirectories failure | SDK-compatible dependency retained | Separate native APK; native autolink prerequisite and Android logcat error gates; screenshots | Pixel-perfect glyph rendering remains manual; absence of errors alone is insufficient |
 
 Excluded product features remain excluded: shopping, invitations, multi-household
 selection, premium limits, quantities/expiry/batches, filters, pull-to-refresh,

@@ -109,4 +109,5 @@ jobs:
         with:
           name: android-e2e-diagnostics
           path: pantry-flow/.verification/maestro
+          include-hidden-files: true
           retention-days: 7

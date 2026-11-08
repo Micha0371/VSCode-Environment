@@ -63,6 +63,7 @@ name: Slice 1.1 critical behavioral journey
 - assertVisible: An item with this name already exists in your household. Please use a different name.
 - tapOn:
     id: add-item-name
+    point: "95%,50%"
 - eraseText
 - inputText: Milk Fridge
 - hideKeyboard
@@ -72,6 +73,7 @@ name: Slice 1.1 critical behavioral journey
 - tapOn: Milk Fridge
 - tapOn:
     id: edit-item-name
+    point: "95%,50%"
 - eraseText
 - inputText: milk
 - hideKeyboard
@@ -115,6 +117,7 @@ name: Slice 1.1 critical behavioral journey
 - tapOn: Milk
 - tapOn:
     id: edit-item-name
+    point: "95%,50%"
 - eraseText
 - inputText: Milk Saved
 - hideKeyboard
@@ -144,6 +147,7 @@ name: Slice 1.1 critical behavioral journey
 - tapOn: Milk Saved
 - tapOn:
     id: edit-item-name
+    point: "95%,50%"
 - eraseText
 - inputText: Milk
 - hideKeyboard

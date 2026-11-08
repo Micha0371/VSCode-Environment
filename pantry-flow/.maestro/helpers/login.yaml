@@ -2,10 +2,15 @@ appId: com.pantryflow.test
 ---
 - tapOn:
     id: login-email
+    point: "95%,50%"
 - eraseText
 - inputText: ${EMAIL}
+- assertVisible:
+    id: login-email
+    text: ${EMAIL}
 - tapOn:
     id: login-password
+    point: "95%,50%"
 - eraseText
 - inputText: PF-local-test-only-9281!
 - hideKeyboard

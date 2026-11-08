@@ -43,15 +43,15 @@
 ##
 ## metadata:
 ##   created_by: "main_agent"
-##   version: "1.1"
+##   version: "1.2"
 ##   test_sequence: 0
 ##   run_ui: true
 ##
 ## test_plan:
 ##   current_focus:
-    - "Completed: 32 local checks, TypeScript, SDK compatibility, 13 hosted groups and 22 Android groups"
-    - "Commit and push validated baseline"
-    - "Upgrade legacy Expo SDK tooling before production release"
+    - "PF-TEST-001: preserve e6dbcf8 and consolidate on pantryflow/pf-test-001"
+    - "Final CI verification of the corrected harness; local fast/database/Android gates pass"
+    - "SDK, real email delivery and hosted-account cleanup remain independent follow-up tasks"
   test_all: false
 ##   test_priority: "high_first"  # or "sequential" or "stuck_first"
 ##
@@ -121,7 +121,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 test_plan:
   current_focus:
@@ -142,3 +142,6 @@ agent_communication:
 
   - agent: "main"
     message: "PF-TEST-001 execution: Docker Desktop located in per-user installation and started. Fresh local Supabase reset from migrations 00001–00003 passed. All 21 pgTAP assertions and six HTTP behavior groups pass, with automatic fixture cleanup. Android test APK/emulator setup is in progress; no app behavior changes made."
+
+  - agent: "main"
+    message: "PF-TEST-001 local completion: 35 Node checks, one RNTL keyboard case, one local-target guard and TypeScript pass. Fresh Supabase migrations, 21 pgTAP assertions and six ordinary-user HTTP groups pass. Maestro release-APK journey passes in 6m 6s with real database postconditions and automatic account cleanup. Native plus/tab icons visually verified. First-run CI/setup/text-entry defects were in the harness; no application source or migration changed. Final CI rerun pending."
