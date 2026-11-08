@@ -1,6 +1,21 @@
 # Running the consolidated regression harness
 
-Reference baseline: `e6dbcf8`. Work belongs on `pantryflow/pf-test-001`; never rewrite or retag the validated baseline. No application source, business rules, migrations or production configuration are changed for tests.
+## Integration and required checks
+
+`main` is the integration branch. The historical branch
+`pantryflow/slice-1.1-validated` remains at `e6dbcf8`. Pull requests into `main`
+require the GitHub Actions `fast` and `database` checks against an up-to-date
+branch, with conversations resolved. Direct pushes, force pushes and branch
+deletion are blocked by branch protection, including for administrators.
+Android remains an on-demand/weekly gate rather than an unconditional PR job.
+
+The coverage matrix is a living specification: every behavior change, including
+Slice 2 work, adds or updates its acceptance scenarios and regression tests in
+the same pull request. SDK/native dependency upgrades stay on a separate branch
+and require the entire harness, a fresh Android build and a physical-device
+smoke test. Production follow-ups remain in `production-follow-ups.md`.
+
+Reference baseline: `e6dbcf8`. PF-TEST-001 was implemented on `pantryflow/pf-test-001`; use a new branch for subsequent tasks and never rewrite or retag the validated baseline. No application source, business rules, migrations or production configuration are changed for tests.
 
 Read [the existing inventory](existing-inventory.md), [behavior matrix](coverage-matrix.md), and [independent production tasks](production-follow-ups.md).
 
@@ -48,7 +63,7 @@ Diagnostics: ignored `.verification/maestro/results.xml`, `debug/`, screenshots 
 
 ## CI and release gate
 
-`.github/workflows/pantryflow-tests.yml` runs fast and disposable-database jobs on PRs. Manual dispatch and weekly scheduled runs additionally build an Android test APK and run Maestro on an accelerated emulator. CI has read-only repository permissions and needs no Supabase/GitHub secrets. Android diagnostics are retained for seven days. Schedules/manual dispatch require the workflow to exist on the repository default branch; until merged, branch pushes run fast/database checks. A harness-branch push whose commit message contains `[full-e2e]` also runs Android, allowing exact-commit validation without modifying the preserved default baseline.
+`.github/workflows/pantryflow-tests.yml` runs fast and disposable-database jobs on PRs. Manual dispatch and weekly scheduled runs additionally build an Android test APK and run Maestro on an accelerated emulator. CI has read-only repository permissions and needs no Supabase/GitHub secrets. Android diagnostics are retained for seven days. With the workflow integrated on `main`, scheduled and manual dispatch runs are active. Manual dispatch can select a follow-up branch for full Android validation before its PR is merged.
 
 A harness change is accepted only after fast, database and Android jobs pass for its exact commit. Do not label an unexecuted flow a passing regression. Baseline historical counts (32 local, 13 hosted, 22 device groups) remain historical evidence rather than current automation counts. SDK upgrade, actual email delivery and historical hosted-account cleanup stay separate tasks.
 

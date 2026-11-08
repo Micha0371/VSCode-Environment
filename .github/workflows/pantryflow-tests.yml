@@ -2,7 +2,7 @@ name: PantryFlow behavioral regression
 on:
   pull_request:
   push:
-    branches: [pantryflow/pf-test-001]
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: '23 4 * * 1'
