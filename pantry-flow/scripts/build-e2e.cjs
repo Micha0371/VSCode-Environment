@@ -4,6 +4,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const work = path.join(root, '.verification/e2e-app');
+try {
 const publicEnv = JSON.parse(fs.readFileSync(path.join(root, '.verification/e2e-env.json'), 'utf8'));
 if (publicEnv.EXPO_PUBLIC_SUPABASE_URL !== 'http://10.0.2.2:54329') throw Error('Only the Android emulator local Supabase endpoint is allowed');
 fs.mkdirSync(work, { recursive: true });
@@ -46,3 +47,9 @@ execFileSync(gradle, ['assembleRelease', '-PreactNativeArchitectures=x86_64', '-
   cwd: path.join(work, 'android'), env, stdio: 'inherit', shell: process.platform === 'win32',
 });
 fs.copyFileSync(path.join(work, 'android/app/build/outputs/apk/release/app-release.apk'), path.join(root, '.verification/pantryflow-test.apk'));
+
+} catch (error) {
+  try { execFileSync(process.execPath, [path.join(root, 'node_modules/tsx/dist/cli.mjs'), path.join(root, 'scripts/e2e-fixtures.ts'), 'cleanup'], { cwd: root, stdio: 'inherit' }); }
+  catch (cleanupError) { console.error('Local fixture cleanup also failed:', cleanupError.message); }
+  throw error;
+}
