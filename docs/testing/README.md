@@ -55,7 +55,7 @@ A harness change is accepted only after fast, database and Android jobs pass for
 ## Current execution record
 
 - Fast: TypeScript and 35 Node checks passed; Jest/RNTL and local-target guard also passed.
-- Disposable Supabase: unchanged migrations reset successfully; all 21 pgTAP assertions and all six HTTP behavior groups passed, including independent concurrent writes. Reserved accounts cleaned automatically.
+- Disposable Supabase: unchanged migrations reset successfully; all 21 pgTAP assertions and all six HTTP behavior groups passed, including independent concurrent writes and foreign profile/household/membership mutations. Reserved accounts cleaned automatically.
 - Android Maestro: full Windows/API 35 release-APK journey passed in 6m 6s, including direct database postconditions, native asset log gate and automatic cleanup. Screenshot review confirms plus/tab icons render. Final CI rerun is required before marking the harness accepted; no new validated tag created.
 - The first CI Android setup requested a removed legacy SDK tools package; explicit platform-tools fixes it. The first executable flow left a trailing email character because a centered tap placed the cursor mid-field. TestID-relative end-of-field taps plus an exact email assertion fixed the harness; application code was unchanged.
 - Windows Gradle initially could not rename completed dependency-accessor caches. Copying the completed generated cache directories to their matching immutable names allowed the local build; no antivirus settings were changed. Linux CI did not require that local workaround.

@@ -44,6 +44,13 @@ test('real local Auth/PostgREST behavior from migrations 00001–00003', async t
         assert.deepEqual(ok(await actor.client.from('pantry_items').update({ name: 'Stolen' }).eq('household_id', owner.household).select()), []);
         assert.deepEqual(ok(await actor.client.from('pantry_items').delete().eq('household_id', owner.household).select()), []);
         assert.ok((await insert(actor, 'Foreign', { household_id: owner.household })).error);
+        assert.deepEqual(ok(await actor.client.from('profiles').update({ name: 'Stolen' }).eq('id', owner.id).select()), []);
+        assert.deepEqual(ok(await actor.client.from('pantry_households').update({ name: 'Stolen' }).eq('id', owner.household).select()), []);
+        assert.deepEqual(ok(await actor.client.from('pantry_households').delete().eq('id', owner.household).select()), []);
+        assert.deepEqual(ok(await actor.client.from('pantry_household_members').update({ role: 'owner' }).eq('user_id', owner.id).select()), []);
+        assert.deepEqual(ok(await actor.client.from('pantry_household_members').delete().eq('user_id', owner.id).select()), []);
+        assert.equal((await actor.client.from('pantry_household_members').insert({ household_id: owner.household, user_id: actor.id, role: 'owner' })).error?.code, '42501');
+        assert.equal((await actor.client.from('pantry_households').insert({ owner_id: actor.id, name: 'Unapproved second household' })).error?.code, '42501');
       }
       const anon = stack.client();
       const read = await anon.from('pantry_items').select('*');
