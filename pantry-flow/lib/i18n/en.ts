@@ -1,0 +1,96 @@
+export const en = {
+  // Navigation
+  nav_pantry: 'Pantry',
+  nav_settings: 'Settings',
+
+  // Auth
+  auth_login_title: 'Welcome back',
+  auth_register_title: 'Create your account',
+  auth_login_button: 'Sign In',
+  auth_register_button: 'Create Account',
+  auth_logout: 'Sign Out',
+  auth_email: 'Email',
+  auth_password: 'Password',
+  auth_name: 'Name',
+  auth_email_placeholder: 'you@example.com',
+  auth_password_placeholder: 'At least 6 characters',
+  auth_name_placeholder: 'Your name',
+  auth_no_account: "Don't have an account?",
+  auth_have_account: 'Already have an account?',
+  auth_go_to_register: 'Create one',
+  auth_go_to_login: 'Sign in',
+
+  // Status
+  status_in_stock: 'In Stock',
+  status_low: 'Low',
+  status_out: 'Out',
+
+  // Categories
+  cat_dairy: 'Dairy',
+  cat_grains: 'Grains',
+  cat_produce: 'Produce',
+  cat_protein: 'Protein',
+  cat_canned: 'Canned',
+  cat_frozen: 'Frozen',
+  cat_beverages: 'Beverages',
+  cat_snacks: 'Snacks',
+  cat_condiments: 'Condiments',
+  cat_cleaning: 'Cleaning',
+  cat_personal: 'Personal',
+  cat_other: 'Other',
+
+  // Locations
+  loc_fridge: 'Fridge',
+  loc_freezer: 'Freezer',
+  loc_pantry: 'Pantry',
+  loc_counter: 'Counter',
+  loc_cabinet: 'Cabinet',
+  loc_other: 'Other',
+
+  // Items
+  item_name: 'Name',
+  item_name_placeholder: 'e.g. Milk',
+  item_category: 'Category',
+  item_location: 'Location',
+  item_status: 'Status',
+  item_add_title: 'Add Item',
+  item_edit_title: 'Edit Item',
+  item_add_button: 'Add Item',
+  item_save_button: 'Save',
+  item_delete: 'Delete',
+  item_delete_confirm_title: 'Delete this item?',
+  item_delete_confirm_message: 'This cannot be undone.',
+
+  // Empty state
+  empty_pantry_title: 'Your pantry is empty',
+  empty_pantry_subtitle: 'Add your first item to get started.',
+  empty_pantry_cta: 'Add Item',
+
+  // Common
+  common_cancel: 'Cancel',
+  common_save: 'Save',
+  common_delete: 'Delete',
+  common_back: 'Back',
+  common_loading: 'Loadingâ€¦',
+
+  common_retry: 'Try again',
+  auth_check_email_title: 'Check your email',
+  auth_check_email_message: 'If this address can be registered, we have sent a confirmation email. Confirm your address, then sign in.',
+  err_restore_session: 'Could not restore your session. Please try again.',
+  err_signout: 'Could not sign out. Please try again.',
+  err_item_name_length: 'Use a name of 120 characters or fewer.',
+  err_item_missing: 'This item is no longer available.',
+  err_duplicate_item: 'An item with this name already exists in your household. Please use a different name.',
+
+  // Errors
+  err_required_name: 'Name is required.',
+  err_login_failed: 'Invalid email or password.',
+  err_register_failed: 'Could not create account.',
+  err_load_items: 'Could not load items.',
+  err_save_item: 'Could not save item.',
+  err_delete_item: 'Could not delete item.',
+  err_no_household: 'No household found. Please sign out and back in.',
+  err_generic: 'Something went wrong. Please try again.',
+};
+
+export type TranslationKey = keyof typeof en;

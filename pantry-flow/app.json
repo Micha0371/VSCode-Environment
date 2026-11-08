@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Pantry Flow",
+    "slug": "pantry-flow",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "pantryflow",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pantryflow.app"
+    },
+    "android": {
+      "package": "com.pantryflow.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F6F5F1"
+      }
+    },
+    "plugins": ["expo-router"]
+  }
+}
