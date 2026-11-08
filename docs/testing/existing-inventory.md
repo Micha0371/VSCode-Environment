@@ -1,6 +1,6 @@
 # Existing coverage at e6dbcf8
 
-The 32 Node test-runner checks (including nested PostgreSQL cases) are automated and retained. Native/network boundaries are mocked; PGlite runs real PostgreSQL in-process with a minimal auth schema and replacement UUID function. Its overlapping promises do not prove multi-connection concurrency.
+The 32 Node test-runner checks (including the parent and nested PostgreSQL cases) are automated and retained. The parameterized final screen case runs separately for add-item and edit-item. Native/network boundaries are mocked; PGlite runs real PostgreSQL in-process with a minimal auth schema and replacement UUID function. Its overlapping promises do not prove multi-connection concurrency.
 
 ### `auth.test.cjs`
 - rejected session restoration settles loading, exposes retry, and recovers

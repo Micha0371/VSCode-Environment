@@ -50,7 +50,7 @@
 ## test_plan:
 ##   current_focus:
     - "PF-TEST-001: preserve e6dbcf8 and consolidate on pantryflow/pf-test-001"
-    - "Final CI verification of the corrected harness; local fast/database/Android gates pass"
+    - "Completed full fast/database/Android CI at 4f90b85; branch CI verifies the DB-only extension"
     - "SDK, real email delivery and hosted-account cleanup remain independent follow-up tasks"
   test_all: false
 ##   test_priority: "high_first"  # or "sequential" or "stuck_first"
@@ -145,3 +145,6 @@ agent_communication:
 
   - agent: "main"
     message: "PF-TEST-001 local completion: 35 Node checks, one RNTL keyboard case, one local-target guard and TypeScript pass. Fresh Supabase migrations, 21 pgTAP assertions and six ordinary-user HTTP groups pass. Maestro release-APK journey passes in 6m 6s with real database postconditions and automatic account cleanup. Native plus/tab icons visually verified. First-run CI/setup/text-entry defects were in the harness; no application source or migration changed. Final CI rerun pending."
+
+  - agent: "main"
+    message: "PF-TEST-001 full CI completion: https://github.com/Micha0371/VSCode-Environment/actions/runs/42512140002 passes fast, database and Android jobs at 4f90b85, including cleanup and diagnostic upload. Local native journey also passes. Follow-up 98a823b adds only foreign-write API assertions; six local groups and TypeScript pass, and branch fast/database CI verifies the extension. App source, original migrations, runtime dependency versions and baseline e6dbcf8 are unchanged. Local stack/emulator stopped; no new validated tag created."
