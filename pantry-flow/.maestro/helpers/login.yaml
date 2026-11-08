@@ -1,0 +1,17 @@
+appId: com.pantryflow.test
+---
+- tapOn:
+    id: login-email
+- eraseText
+- inputText: ${EMAIL}
+- tapOn:
+    id: login-password
+- eraseText
+- inputText: PF-local-test-only-9281!
+- hideKeyboard
+- tapOn:
+    id: login-submit
+- extendedWaitUntil:
+    visible:
+      id: pantry-screen
+    timeout: 30000

@@ -144,3 +144,7 @@ The SDK 52 dependency tree has outstanding security advisories in legacy tooling
 Compatible patches and an npm lockfile are included; a supported Expo SDK upgrade
 and native-device validation are still needed before a production release. Do
 not use `npm audit fix --force` as a substitute for that migration.
+
+## Behavioral regression harness
+
+See [test commands and execution record](../docs/testing/README.md), [coverage matrix](../docs/testing/coverage-matrix.md), and [baseline inventory](../docs/testing/existing-inventory.md). Run `npm run test:fast` for the consolidated fast gate. Docker-backed tests use only the dedicated local Supabase stack; they do not run against the configured hosted app project.

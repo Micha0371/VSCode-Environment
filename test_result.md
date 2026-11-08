@@ -136,3 +136,9 @@ agent_communication:
 
   - agent: "main"
     message: "2026-11-08 final: Earlier pending notes are superseded. Deployed authorization/duplicates: 13 groups pass, zero cleanup failures. Local regressions: 32 pass; TypeScript and SDK compatibility pass. Android: 22 groups pass, including two device-discovered fixes. Temporary mocks cleared, phone signed out, test inventory removed. Three disposable accounts remain. Confirmation-required UI was simulated; real email delivery untested. See docs/H_Slice_1_1_Verification.md."
+
+  - agent: "main"
+    message: "PF-TEST-001: Reference e6dbcf8 preserved; consolidation on pantryflow/pf-test-001. Inventoried 32 automated baseline checks, 13 repeatable hosted groups and 22 ad hoc Android groups. Added local-only Supabase, pgTAP/API and Maestro harness; application source and original migrations unchanged. Fast gate passes 34 Node checks, one RNTL case and one local-target guard. Disposable database and Android execution are pending; no new validated tag is claimed. See docs/testing/README.md."
+
+  - agent: "main"
+    message: "PF-TEST-001 execution: Docker Desktop located in per-user installation and started. Fresh local Supabase reset from migrations 00001–00003 passed. All 21 pgTAP assertions and six HTTP behavior groups pass, with automatic fixture cleanup. Android test APK/emulator setup is in progress; no app behavior changes made."
