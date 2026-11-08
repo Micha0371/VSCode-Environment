@@ -1,0 +1,191 @@
+appId: com.pantryflow.test
+name: Slice 1.1 critical behavioral journey
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: login-submit
+- tapOn:
+    id: login-email
+- inputText: pf.test.alice@example.com
+- tapOn:
+    id: login-password
+- inputText: incorrect-password
+- hideKeyboard
+- tapOn:
+    id: login-submit
+- assertVisible: Invalid email or password.
+- runFlow:
+    file: helpers/login.yaml
+    env:
+      EMAIL: pf.test.alice@example.com
+- assertVisible: Your pantry is empty
+- tapOn:
+    id: pantry-fab-add
+- inputText: '   '
+- hideKeyboard
+- tapOn:
+    id: add-item-save
+- assertVisible: Name is required.
+- tapOn:
+    id: add-item-cancel
+- tapOn:
+    id: pantry-fab-add
+- inputText: '  Milk  '
+# Do not hide the keyboard before this tap: reproduces the device defect.
+- tapOn:
+    id: add-item-category-dairy
+- hideKeyboard
+- tapOn:
+    id: add-item-save
+- assertVisible: Milk
+- launchApp
+- assertVisible: Milk
+- takeScreenshot: .verification/maestro/persisted-milk-icons
+- runScript: helpers/fail-reads.js
+- launchApp
+- assertVisible: Could not load items.
+- assertNotVisible: Your pantry is empty
+- runScript: helpers/restore.js
+- tapOn: Try again
+- assertVisible: Milk
+# Home/foreground must preserve the same visible inventory.
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- assertVisible: Milk
+- tapOn:
+    id: pantry-fab-add
+- inputText: ' MILK '
+- hideKeyboard
+- tapOn:
+    id: add-item-save
+- assertVisible: An item with this name already exists in your household. Please use a different name.
+- tapOn:
+    id: add-item-name
+    point: "95%,50%"
+- eraseText
+- inputText: Milk Fridge
+- hideKeyboard
+- tapOn:
+    id: add-item-save
+- assertVisible: Milk Fridge
+- tapOn: Milk Fridge
+- tapOn:
+    id: edit-item-name
+    point: "95%,50%"
+- eraseText
+- inputText: milk
+- hideKeyboard
+- tapOn:
+    id: edit-item-save
+- assertVisible: An item with this name already exists in your household. Please use a different name.
+- tapOn:
+    id: edit-item-cancel
+- tapOn: Milk Fridge
+- tapOn:
+    id: edit-item-delete
+- tapOn:
+    id: android:id/button2
+- assertVisible:
+    id: edit-item-save
+- tapOn:
+    id: edit-item-delete
+- tapOn:
+    id: android:id/button1
+- assertNotVisible: Milk Fridge
+- tapOn: Milk
+- tapOn:
+    id: edit-item-status-out
+- tapOn:
+    id: edit-item-save
+- assertVisible: Out
+- tapOn: Milk
+- tapOn:
+    id: edit-item-status-in_stock
+- tapOn:
+    id: edit-item-save
+- assertVisible: In Stock
+- tapOn: Milk
+- tapOn:
+    id: edit-item-status-low
+- tapOn:
+    id: edit-item-save
+- assertVisible: Low
+# Reproduce the prior abandoned-save defect through real delayed HTTP.
+- runScript: helpers/delay-write.js
+- tapOn: Milk
+- tapOn:
+    id: edit-item-name
+    point: "95%,50%"
+- eraseText
+- inputText: Milk Saved
+- hideKeyboard
+- tapOn:
+    id: edit-item-save
+- assertVisible:
+    id: edit-item-delete
+    enabled: false
+- back
+- tapOn:
+    id: pantry-fab-add
+- runScript: helpers/wait-write.js
+- repeat:
+    while:
+      true: ${output.pendingWrites > 0 && output.polls < 80}
+    commands:
+      - runScript: helpers/wait-write.js
+- assertTrue: ${output.pendingWrites == 0}
+- assertTrue: ${output.writeStarted}
+- assertVisible:
+    id: add-item-name
+- hideKeyboard
+- tapOn:
+    id: add-item-cancel
+- assertVisible: Milk Saved
+- runScript: helpers/restore.js
+- tapOn: Milk Saved
+- tapOn:
+    id: edit-item-name
+    point: "95%,50%"
+- eraseText
+- inputText: Milk
+- hideKeyboard
+- tapOn:
+    id: edit-item-save
+- assertVisible: Milk
+- openLink: pantryflowtest://settings
+- tapOn:
+    id: settings-signout
+- assertVisible:
+    id: login-submit
+- openLink: pantryflowtest://add-item
+- assertNotVisible:
+    id: add-item-save
+- runFlow:
+    file: helpers/login.yaml
+    env:
+      EMAIL: pf.test.bob@example.com
+- assertVisible: Your pantry is empty
+- assertNotVisible: Milk
+- openLink: pantryflowtest://settings
+- tapOn:
+    id: settings-signout
+- tapOn:
+    id: go-register
+- tapOn:
+    id: register-name
+- inputText: Signup
+- tapOn:
+    id: register-email
+- inputText: pf.test.signup@example.com
+- tapOn:
+    id: register-password
+- inputText: PF-local-test-only-9281!
+- hideKeyboard
+- tapOn:
+    id: register-submit
+- assertVisible: Check your email
+- assertNotVisible:
+    id: pantry-screen
+- takeScreenshot: .verification/maestro/confirmation-required

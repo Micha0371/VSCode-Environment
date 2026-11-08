@@ -43,15 +43,15 @@
 ##
 ## metadata:
 ##   created_by: "main_agent"
-##   version: "1.1"
+##   version: "1.2"
 ##   test_sequence: 0
 ##   run_ui: true
 ##
 ## test_plan:
 ##   current_focus:
-    - "Completed: 32 local checks, TypeScript, SDK compatibility, 13 hosted groups and 22 Android groups"
-    - "Commit and push validated baseline"
-    - "Upgrade legacy Expo SDK tooling before production release"
+    - "PF-TEST-001: preserve e6dbcf8 and consolidate on pantryflow/pf-test-001"
+    - "Completed full fast/database/Android CI at 4f90b85; branch CI verifies the DB-only extension"
+    - "SDK, real email delivery and hosted-account cleanup remain independent follow-up tasks"
   test_all: false
 ##   test_priority: "high_first"  # or "sequential" or "stuck_first"
 ##
@@ -121,7 +121,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 test_plan:
   current_focus:
@@ -136,3 +136,15 @@ agent_communication:
 
   - agent: "main"
     message: "2026-11-08 final: Earlier pending notes are superseded. Deployed authorization/duplicates: 13 groups pass, zero cleanup failures. Local regressions: 32 pass; TypeScript and SDK compatibility pass. Android: 22 groups pass, including two device-discovered fixes. Temporary mocks cleared, phone signed out, test inventory removed. Three disposable accounts remain. Confirmation-required UI was simulated; real email delivery untested. See docs/H_Slice_1_1_Verification.md."
+
+  - agent: "main"
+    message: "PF-TEST-001: Reference e6dbcf8 preserved; consolidation on pantryflow/pf-test-001. Inventoried 32 automated baseline checks, 13 repeatable hosted groups and 22 ad hoc Android groups. Added local-only Supabase, pgTAP/API and Maestro harness; application source and original migrations unchanged. Fast gate passes 34 Node checks, one RNTL case and one local-target guard. Disposable database and Android execution are pending; no new validated tag is claimed. See docs/testing/README.md."
+
+  - agent: "main"
+    message: "PF-TEST-001 execution: Docker Desktop located in per-user installation and started. Fresh local Supabase reset from migrations 00001–00003 passed. All 21 pgTAP assertions and six HTTP behavior groups pass, with automatic fixture cleanup. Android test APK/emulator setup is in progress; no app behavior changes made."
+
+  - agent: "main"
+    message: "PF-TEST-001 local completion: 35 Node checks, one RNTL keyboard case, one local-target guard and TypeScript pass. Fresh Supabase migrations, 21 pgTAP assertions and six ordinary-user HTTP groups pass. Maestro release-APK journey passes in 6m 6s with real database postconditions and automatic account cleanup. Native plus/tab icons visually verified. First-run CI/setup/text-entry defects were in the harness; no application source or migration changed. Final CI rerun pending."
+
+  - agent: "main"
+    message: "PF-TEST-001 full CI completion: https://github.com/Micha0371/VSCode-Environment/actions/runs/42512140002 passes fast, database and Android jobs at 4f90b85, including cleanup and diagnostic upload. Local native journey also passes. Follow-up 98a823b adds only foreign-write API assertions; six local groups and TypeScript pass, and branch fast/database CI verifies the extension. App source, original migrations, runtime dependency versions and baseline e6dbcf8 are unchanged. Local stack/emulator stopped; no new validated tag created."

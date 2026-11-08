@@ -1,0 +1,113 @@
+name: PantryFlow behavioral regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: pantryflow-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    working-directory: pantry-flow
+    shell: bash
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: pantry-flow/package-lock.json
+      - run: npm ci
+      - run: npm run test:fast 2>&1 | tee fast-tests.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fast-test-diagnostics
+          path: pantry-flow/fast-tests.log
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: pantry-flow/package-lock.json
+      - run: npm ci
+      - run: npm run db:start
+        id: stack
+      - run: npm run test:local 2>&1 | tee database-tests.log
+      - run: npm run e2e:cleanup
+        if: always() && steps.stack.outcome == 'success'
+      - run: npx --no-install supabase stop --no-backup
+        if: always() && steps.stack.outcome == 'success'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: database-test-diagnostics
+          path: pantry-flow/database-tests.log
+  android:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[full-e2e]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: [fast, database]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: pantry-flow/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: npm ci
+      - run: npm run db:start
+        id: stack
+      - run: npm run db:reset
+      - run: npm run e2e:prepare
+      - run: npm run e2e:build
+      - name: Install pinned Maestro CLI
+        run: |
+          curl --fail --location --retry 3 https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.12.0/maestro.zip -o /tmp/maestro.zip
+          unzip -q /tmp/maestro.zip -d /tmp/pantryflow-maestro
+          echo /tmp/pantryflow-maestro/maestro/bin >> "$GITHUB_PATH"
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          working-directory: pantry-flow
+          script: npm run test:e2e
+      - run: npm run e2e:cleanup
+        if: always() && steps.stack.outcome == 'success'
+      - run: npx --no-install supabase stop --no-backup
+        if: always() && steps.stack.outcome == 'success'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-e2e-diagnostics
+          path: pantry-flow/.verification/maestro
+          include-hidden-files: true
+          retention-days: 7

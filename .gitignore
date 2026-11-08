@@ -103,3 +103,8 @@ credentials.json
 # Local npm cache
 .npm-cache/
 .verification/
+
+# Disposable local Supabase state and harness diagnostics
+pantry-flow/supabase/.temp/
+pantry-flow/supabase/.branches/
+pantry-flow/*-tests.log

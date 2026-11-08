@@ -11,6 +11,20 @@ const t = key => key;
 const shared = { 'react-native': native, '@/lib/theme': theme,
   '@/lib/i18n': { useTranslation: () => ({ t }) }, '@/components/Button': { Button: 'Button' } };
 
+test('initial inventory loading shows progress without claiming an empty pantry', () => {
+  const { default: Screen } = load('app/(tabs)/index.tsx', { ...shared,
+    'expo-router': { useRouter: () => ({}) }, '@expo/vector-icons': { Ionicons: 'Icon' },
+    '@/components/EmptyState': { EmptyState: 'EmptyState' }, '@/components/PantryItem': { PantryItem: 'Item' },
+    '@/hooks/usePantryItems': { usePantryItems: () => ({ items: [], loading: true, error: null }) },
+  });
+  let renderer;
+  try {
+    act(() => { renderer = create(React.createElement(Screen)); });
+    assert.equal(renderer.root.findAllByType('EmptyState').length, 0);
+    assert.equal(renderer.root.findAllByType('Spinner').length, 1);
+  } finally { if (renderer) act(() => renderer.unmount()); }
+});
+
 test('a failed initial pantry load shows retry instead of claiming the pantry is empty', () => {
   let retries = 0;
   const { default: Screen } = load('app/(tabs)/index.tsx', { ...shared,
