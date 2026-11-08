@@ -40,10 +40,27 @@ xml = xml.replace(/\sandroid:usesCleartextTraffic="[^"]*"/g, '').replace('<appli
 fs.writeFileSync(manifest, xml);
 if (process.platform === 'win32') {
   const buildFile = path.join(work, 'android/app/build.gradle');
-  const staging = path.join(root, '.verification/e2e-cxx').replaceAll('\\', '/');
+  // All CMake projects need short paths, including Reanimated/Worklets libraries.
+  // Keep generated caches inside the repository, outside the deeper test app.
+  const staging = path.resolve(root, '../.cxx').replaceAll('\\', '/');
   const content = fs.readFileSync(buildFile, 'utf8').replace('android {',
-    `android {\n    externalNativeBuild { cmake { buildStagingDirectory file('${staging}') } }\n    defaultConfig { externalNativeBuild { cmake { arguments '-DCMAKE_OBJECT_PATH_MAX=250' } } }`);
+    `android {\n    externalNativeBuild { cmake { buildStagingDirectory file('${staging}/app') } }\n    defaultConfig { externalNativeBuild { cmake { arguments '-DCMAKE_OBJECT_PATH_MAX=250' } } }`);
   fs.writeFileSync(buildFile, content);
+  fs.appendFileSync(path.join(work, 'android/build.gradle'), `
+// Windows test-build cache paths; no installed package sources are modified.
+subprojects { nativeProject ->
+    nativeProject.plugins.withId('com.android.library') {
+        nativeProject.android {
+            externalNativeBuild { cmake {
+                buildStagingDirectory file('${staging}/' + Integer.toHexString(nativeProject.path.hashCode()))
+            } }
+            defaultConfig { externalNativeBuild { cmake {
+                arguments '-DCMAKE_OBJECT_PATH_MAX=250'
+            } } }
+        }
+    }
+}
+`);
 }
 // Release JS bundle/lifecycle with a disposable debug-signed test package.
 const gradle = process.platform === 'win32' ? path.join(work, 'android/gradlew.bat') : './gradlew';
