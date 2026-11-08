@@ -24,7 +24,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Native timers need explicit foreground/background lifecycle management.
 if (Platform.OS !== 'web') {
-  const refreshForState = (state: string) => {
+  const refreshForState = (state: string | null | undefined) => {
     if (state === 'active') supabase.auth.startAutoRefresh();
     else supabase.auth.stopAutoRefresh();
   };

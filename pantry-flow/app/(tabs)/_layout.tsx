@@ -24,8 +24,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t('nav_pantry'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cube-outline" size={size} color={color} />
+          tabBarIcon: ({ focused, size }) => (
+            <Ionicons name="cube-outline" size={size} color={focused ? colors.primary : colors.textMuted} />
           ),
         }}
       />
@@ -33,8 +33,8 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: t('nav_settings'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+          tabBarIcon: ({ focused, size }) => (
+            <Ionicons name="settings-outline" size={size} color={focused ? colors.primary : colors.textMuted} />
           ),
         }}
       />

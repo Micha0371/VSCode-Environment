@@ -6,7 +6,11 @@ const root = path.resolve(__dirname, '..');
 const work = path.join(root, '.verification/e2e-app');
 try {
 const publicEnv = JSON.parse(fs.readFileSync(path.join(root, '.verification/e2e-env.json'), 'utf8'));
-if (publicEnv.EXPO_PUBLIC_SUPABASE_URL !== 'http://10.0.2.2:54329') throw Error('Only the Android emulator local Supabase endpoint is allowed');
+if (!['http://10.0.2.2:54329', 'http://127.0.0.1:54329'].includes(publicEnv.EXPO_PUBLIC_SUPABASE_URL)) {
+  throw Error('Only emulator host access or device ADB reverse to local Supabase is allowed');
+}
+const architectures = process.env.PANTRY_TEST_ARCHITECTURES || 'x86_64';
+if (!['x86_64', 'arm64-v8a', 'x86_64,arm64-v8a'].includes(architectures)) throw Error('Unsupported test APK architectures');
 fs.mkdirSync(work, { recursive: true });
 for (const name of ['app', 'components', 'hooks', 'lib']) {
   const target = path.resolve(work, name);
@@ -43,10 +47,11 @@ if (process.platform === 'win32') {
 }
 // Release JS bundle/lifecycle with a disposable debug-signed test package.
 const gradle = process.platform === 'win32' ? path.join(work, 'android/gradlew.bat') : './gradlew';
-execFileSync(gradle, ['assembleRelease', '-PreactNativeArchitectures=x86_64', '--max-workers=2', '--no-daemon'], {
+execFileSync(gradle, [':app:assembleRelease', `-PreactNativeArchitectures=${architectures}`, '--max-workers=2', '--no-daemon'], {
   cwd: path.join(work, 'android'), env, stdio: 'inherit', shell: process.platform === 'win32',
 });
-fs.copyFileSync(path.join(work, 'android/app/build/outputs/apk/release/app-release.apk'), path.join(root, '.verification/pantryflow-test.apk'));
+const apkName = architectures === 'x86_64' ? 'pantryflow-test.apk' : `pantryflow-test-${architectures.replace(',', '-')}.apk`;
+fs.copyFileSync(path.join(work, 'android/app/build/outputs/apk/release/app-release.apk'), path.join(root, '.verification', apkName));
 
 } catch (error) {
   try { execFileSync(process.execPath, [path.join(root, 'node_modules/tsx/dist/cli.mjs'), path.join(root, 'scripts/e2e-fixtures.ts'), 'cleanup'], { cwd: root, stdio: 'inherit' }); }
