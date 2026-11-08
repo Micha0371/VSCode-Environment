@@ -10,7 +10,7 @@ if (process.platform === 'win32') {
   const after = '(0, _tinyglobby().globSync)(`android/app/src/${type}/java/**/${fileName}.@(java|kt)`, { cwd: projectRoot, absolute: true })';
   const source = fs.readFileSync(file, 'utf8');
   if (version !== '58.0.12' || (!source.includes(before) && !source.includes(after))) {
-    throw Error('Review/remove the Expo Windows glob workaround for this config-plugins version');
+    throw new Error('Review/remove the Expo Windows glob workaround for this config-plugins version');
   }
   if (source.includes(before)) fs.writeFileSync(file, source.replace(before, after));
 }

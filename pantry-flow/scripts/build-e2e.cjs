@@ -7,14 +7,14 @@ const work = path.join(root, '.verification/e2e-app');
 try {
 const publicEnv = JSON.parse(fs.readFileSync(path.join(root, '.verification/e2e-env.json'), 'utf8'));
 if (!['http://10.0.2.2:54329', 'http://127.0.0.1:54329'].includes(publicEnv.EXPO_PUBLIC_SUPABASE_URL)) {
-  throw Error('Only emulator host access or device ADB reverse to local Supabase is allowed');
+  throw new Error('Only emulator host access or device ADB reverse to local Supabase is allowed');
 }
 const architectures = process.env.PANTRY_TEST_ARCHITECTURES || 'x86_64';
-if (!['x86_64', 'arm64-v8a', 'x86_64,arm64-v8a'].includes(architectures)) throw Error('Unsupported test APK architectures');
+if (!['x86_64', 'arm64-v8a', 'x86_64,arm64-v8a'].includes(architectures)) throw new Error('Unsupported test APK architectures');
 fs.mkdirSync(work, { recursive: true });
 for (const name of ['app', 'components', 'hooks', 'lib']) {
   const target = path.resolve(work, name);
-  if (!target.startsWith(path.resolve(root, '.verification') + path.sep)) throw Error('Unsafe generated-source target');
+  if (!target.startsWith(path.resolve(root, '.verification') + path.sep)) throw new Error('Unsafe generated-source target');
   fs.rmSync(target, { recursive: true, force: true });
   fs.cpSync(path.join(root, name), target, { recursive: true, force: true });
 }
@@ -32,7 +32,7 @@ execFileSync(process.execPath, [path.join(root, 'node_modules/expo/bin/cli'), 'p
 const linked = JSON.parse(execFileSync(process.execPath, [path.join(root, 'node_modules/expo-modules-autolinking/bin/expo-modules-autolinking'),
   'resolve', '--platform', 'android', '--json'], { cwd: work, env, encoding: 'utf8' }));
 if (!linked.modules?.some(module => module.packageName === 'expo-file-system')) {
-  throw Error('Native regression: expo-file-system is absent from Android autolinking; fonts/assets will fail');
+  throw new Error('Native regression: expo-file-system is absent from Android autolinking; fonts/assets will fail');
 }
 const manifest = path.join(work, 'android/app/src/main/AndroidManifest.xml');
 let xml = fs.readFileSync(manifest, 'utf8');
