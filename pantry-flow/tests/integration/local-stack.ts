@@ -6,7 +6,7 @@ import path from 'node:path';
 export const appRoot = path.resolve(__dirname, '../..');
 export const localUrl = 'http://127.0.0.1:54321';
 export const password = 'PF-local-test-only-9281!';
-export const emails = ['pf.test.alice@example.com', 'pf.test.bob@example.com', 'pf.test.signup@example.com'];
+export const emails = ['pf.test.alice@example.com', 'pf.test.bob@example.com', 'pf.test.signup@example.com', 'pf.test.confirm@example.com'];
 
 export function validateLocalStatus(status: Record<string, string>) {
   assert.equal(status.API_URL, localUrl, 'Refusing any non-local or unexpected Supabase stack');
@@ -17,8 +17,8 @@ export function validateLocalStatus(status: Record<string, string>) {
 // Explicit CLI cwd, never .env or hosted credentials. The admin client is only
 // for local fixture lifecycle. All behavioral assertions use ordinary clients.
 export function localStack() {
-  const executable = path.join(appRoot, 'node_modules/supabase/bin', process.platform === 'win32' ? 'supabase.exe' : 'supabase');
-  const status = validateLocalStatus(JSON.parse(execFileSync(executable, ['status', '-o', 'json'], {
+  const launcher = path.join(appRoot, 'node_modules/supabase/dist/supabase.js');
+  const status = validateLocalStatus(JSON.parse(execFileSync(process.execPath, [launcher, 'status', '-o', 'json'], {
     cwd: appRoot, encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'pipe'],
   })));
   const options = { auth: { persistSession: false, autoRefreshToken: false },

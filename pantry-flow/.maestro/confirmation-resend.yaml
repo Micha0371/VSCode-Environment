@@ -1,0 +1,23 @@
+appId: com.pantryflow.test
+name: Expired native email link recovery and resend
+---
+- openLink: ${MAESTRO_CONFIRMATION_URL}
+- assertVisible: This confirmation link is invalid or has expired
+- assertNotVisible: Your pantry is empty
+- tapOn:
+    id: confirmation-recover
+- tapOn:
+    id: confirmation-email
+- inputText: pf.test.confirm@example.com
+- hideKeyboard
+- tapOn:
+    id: confirmation-resend
+- assertVisible:
+    id: confirmation-sent
+- assertVisible:
+    id: confirmation-resend
+    enabled: false
+# Restart before opening the replacement link: the PKCE verifier must persist.
+- launchApp
+- assertVisible:
+    id: login-submit

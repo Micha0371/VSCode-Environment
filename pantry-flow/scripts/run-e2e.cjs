@@ -23,7 +23,7 @@ await new Promise((resolve, reject) => {
  proxy.once('error', reject);
  proxy.once('exit', code => reject(Error(`Local test proxy exited ${code}`)));
 });
-  // prepare resets only the three reserved fixture accounts, not the database.
+  // prepare resets only the four reserved fixture accounts, not the database.
   // Build before invocation using e2e:prepare + e2e:build, then fresh fixtures here.
   fixture('prepare');
   run(adb, ['install', '-r', '.verification/pantryflow-test.apk']);
@@ -34,6 +34,19 @@ await new Promise((resolve, reject) => {
       env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true' },
     });
   fixture('verify');
+  const confirmationFlow = (file, callback) => run(maestro, ['test', '--format', 'junit',
+    '--output', `.verification/maestro/${file}.xml`, '--debug-output', `.verification/maestro/${file}`,
+    `.maestro/${file}.yaml`], { shell: process.platform === 'win32',
+    env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
+      ...(callback ? { MAESTRO_CONFIRMATION_URL: callback } : {}) } });
+  confirmationFlow('confirmation-register');
+  fixture('confirmation-expired');
+  let state = JSON.parse(fs.readFileSync(path.join(root, '.verification/confirmation-state.json'), 'utf8'));
+  confirmationFlow('confirmation-resend', state.expired);
+  fixture('confirmation-resent');
+  state = JSON.parse(fs.readFileSync(path.join(root, '.verification/confirmation-state.json'), 'utf8'));
+  confirmationFlow('confirmation-complete', state.confirmed);
+  fixture('confirmation-verify');
 } catch (error) { failure = error; }
 finally {
   const logs = spawnSync(adb, ['logcat', '-d', '-v', 'threadtime'], { cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });

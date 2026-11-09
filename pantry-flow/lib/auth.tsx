@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
+import { createURL } from 'expo-linking';
+import { assertSecurePkce } from './native-auth-crypto';
 import { supabase } from './supabase';
 
 interface AuthContextType {
@@ -61,8 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   const signUp: AuthContextType['signUp'] = async (name, email, password) => {
     if (!name.trim() || Array.from(name.trim()).length > 100) throw new Error('Invalid name');
+    assertSecurePkce();
     const { data, error: err } = await supabase.auth.signUp({
-      email, password, options: { data: { name: name.trim() } },
+      email, password, options: { data: { name: name.trim() }, emailRedirectTo: createURL('auth/callback') },
     });
     if (err) throw err;
     if (!data.session) return 'confirmation_required';

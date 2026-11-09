@@ -62,3 +62,17 @@ case and separate reviewable fix; it must not silently alter this reference.
 | SDK-02 | Category first tap remains handled with keyboard open | `keyboard-contract.test.cjs`, async RNTL case, existing Maestro flow | Node/component, Maestro and physical keyboard-open first tap pass |
 | SDK-03 | Windows prebuild relocates native package correctly | `native-tooling.test.cjs` exercises actual Expo config plugin; Windows CI job | Original-module replay fails; corrected regression passes locally and on Windows CI |
 | SDK-04 | Fresh native fonts/icons and lifecycle work on SDK 58 | Existing Maestro native font/error checks and physical ARM64 smoke | Maestro and physical Android 16 pass; native icons visually verified |
+
+## Email confirmation release gate (PF-EMAIL-001)
+
+| ID | Behavior | Automated coverage | Remaining acceptance |
+| --- | --- | --- | --- |
+| EMAIL-01 | Confirmation-enabled signup has no session until valid link | Auth regressions; real local Auth/Mailpit integration | Hosted mailbox receipt |
+| EMAIL-02 | S256 PKCE callback exchanges once and survives restart | Native Crypto RFC 7636 vector; callback component tests; real Auth integration | New Maestro flows and physical hosted callback |
+| EMAIL-03 | Expired/replayed/invalid links cannot authenticate | Parser and screen regressions; actual local Auth expiry and replay | Physical expired-link recovery |
+| EMAIL-04 | Resend creates a usable replacement; overlap and rate limits recover | Resend screen tests; actual local Auth/Mailpit resend | Hosted second-message receipt and Android completion |
+| EMAIL-05 | Confirmation session restores after restart and isolates household | Real local session restore; Maestro confirmation-complete and fixture verification | New native suite execution pending |
+
+Local email integration passed against Auth 2.197.0, matching hosted Auth.
+The pinned CLI 2.122.1 replaces the older local Auth that ignored resend PKCE
+challenges. This change is separate from the validated SDK baseline.

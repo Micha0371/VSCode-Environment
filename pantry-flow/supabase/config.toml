@@ -29,6 +29,7 @@ enabled = false
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["pantryflow://auth/callback", "pantryflowtest://auth/callback"]
 enable_signup = true
 minimum_password_length = 6
 
@@ -36,6 +37,7 @@ minimum_password_length = 6
 enable_signup = true
 enable_confirmations = true
 double_confirm_changes = true
+otp_expiry = 60
 
 [analytics]
 enabled = false

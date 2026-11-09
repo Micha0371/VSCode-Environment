@@ -88,6 +88,11 @@ export default function LoginScreen() {
               </Pressable>
             </Link>
           </View>
+          <Link href="/(auth)/confirm-email" asChild>
+            <Pressable testID="login-resend-confirmation">
+              <Text style={styles.switchLink}>{t('auth_resend_confirmation')}</Text>
+            </Pressable>
+          </Link>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -22,6 +22,14 @@ const server = http.createServer(async (req, res) => {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   const body = Buffer.concat(chunks);
+  if (req.url.startsWith('/auth/v1/signup') || req.url.startsWith('/auth/v1/resend')) {
+    let payload;
+    try { payload = JSON.parse(body.toString()); } catch { payload = {}; }
+    if (payload.code_challenge_method !== 's256') {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ message: 'Native confirmation test requires S256 PKCE' })); return;
+    }
+  }
   const delayed = delayWrites && pantry && req.method === 'PATCH';
   if (delayed) { writeStarted = true; pendingWrites++; await new Promise(resolve => setTimeout(resolve, 30000)); }
   const upstream = http.request({ hostname: '127.0.0.1', port: 54321, path: req.url, method: req.method,
