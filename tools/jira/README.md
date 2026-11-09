@@ -1,5 +1,11 @@
 # Local PantryFlow Jira integration
 
+**Single writer only:** run one agent/operator's Jira writes at a time. This CLI
+does not serialize concurrent writers, prevent lost updates or guarantee exactly-once
+creation. Never automatically retry an ambiguous write; inspect Jira using its
+operation identifier first. Concurrency protection is tracked as non-blocking
+[KAN-5](https://michaelwuerthner.atlassian.net/browse/KAN-5).
+
 This Python CLI is development tooling, separate from the Expo app and Supabase.
 It needs Python 3.12+ and no third-party packages. Live requests require Windows
 and the currently logged-in user's Generic Credentials. Fixture tests also run
@@ -147,8 +153,13 @@ GitHub Actions runs these on Windows and Ubuntu without live Jira credentials.
 Live acceptance performed for the initial implementation: authenticated account
 probe, project discovery, exact KAN project/issue types, enhanced project search,
 issue retrieval and available transitions. These checks are read-only. Remote
-create/update/transition behavior is fixture-tested; no live write is claimed.
-Use an explicitly authorized disposable Jira issue for a later live write test.
+create/update/transition behavior was initially fixture-tested only. Subsequent
+owner-authorized operational validation on merged PR #5 created disposable KAN-4,
+updated it, transitioned it to Fertig and independently read back each outcome.
+See [the validation record](../../docs/testing/jira-operational-validation.md).
+KAN-4 remains completed as synthetic audit evidence. No automatic write retries
+were made. This validates the tested account/workflow, not every Jira permission
+or concurrent-write scenario.
 
 References: [Windows credentials](https://learn.microsoft.com/windows/win32/api/wincred/nf-wincred-credreadw),
 [Jira authentication](https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/),

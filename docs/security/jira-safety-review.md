@@ -53,3 +53,10 @@ not proof of exactly-once semantics or blanket secret protection.
 
 References: [Python argparse abbreviation behavior](https://docs.python.org/3/library/argparse.html#allow-abbrev),
 [Atlassian rate limits and Retry-After](https://developer.atlassian.com/cloud/jira/platform/rate-limiting/).
+
+Subsequent operational milestone: after PR #5 merged, the owner authorized a
+disposable live write test. Create/update/transition/read-back passed on KAN-4;
+concurrency debt is recorded as non-blocking KAN-5. See the separate
+[operational validation record](../testing/jira-operational-validation.md).
+The earlier live-write limitation above describes the audit's original scope;
+concurrency and exactly-once limitations still apply.
