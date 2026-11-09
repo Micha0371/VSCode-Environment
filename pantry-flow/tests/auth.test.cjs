@@ -8,17 +8,19 @@ function fixture() {
   const restored = deferred();
   let value, listener, response = { data: { session: null }, error: null };
   let signoutError = null;
+  let signupRequest;
   const auth = {
     getSession: () => restored.promise,
     onAuthStateChange: cb => { listener = cb; return { data: { subscription: { unsubscribe() {} } } }; },
-    signUp: async () => response, signInWithPassword: async () => response,
+    signUp: async request => { signupRequest = request; return response; }, signInWithPassword: async () => response,
     signOut: async () => ({ error: signoutError }),
   };
-  const { AuthProvider, useAuth } = load('lib/auth.tsx', { './supabase': { supabase: { auth } } });
+  const { AuthProvider, useAuth } = load('lib/auth.tsx', { './supabase': { supabase: { auth } }, 'expo-linking': { createURL: () => 'pantryflow://auth/callback' }, './native-auth-crypto': { assertSecurePkce() {} } });
   function Consumer() { value = useAuth(); return null; }
   let renderer;
   act(() => { renderer = create(React.createElement(AuthProvider, null, React.createElement(Consumer))); });
   return { restored, auth, get value() { return value; },
+    get signupRequest() { return signupRequest; },
     response(next) { response = next; }, signoutFails() { signoutError = new Error('offline'); },
     event(session) { act(() => listener('SIGNED_IN', session)); },
     dispose() { act(() => renderer.unmount()); } };
@@ -52,6 +54,7 @@ test('signup distinguishes email confirmation from an authenticated session', as
   let outcome;
   await act(async () => { outcome = await f.value.signUp('Name', 'a@example.com', 'password'); });
   assert.equal(outcome, 'confirmation_required');
+  assert.equal(f.signupRequest.options.emailRedirectTo, 'pantryflow://auth/callback');
   assert.equal(f.value.session, null);
   f.response({ data: { session: { user: { id: 'u' } } }, error: null });
   await act(async () => { outcome = await f.value.signUp('Name', 'a@example.com', 'password'); });

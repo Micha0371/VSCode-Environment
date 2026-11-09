@@ -16,7 +16,7 @@
     "db:start": "supabase start -x realtime,storage-api,imgproxy,edge-runtime,studio,logflare,vector,supavisor",
     "db:reset": "supabase db reset --local",
     "test:db": "supabase test db",
-    "test:integration": "tsx --test tests/integration/behavior.integration.ts",
+    "test:integration": "tsx --test --test-concurrency=1 tests/integration/behavior.integration.ts tests/integration/email-confirmation.integration.ts",
     "test:local": "npm run db:reset && npm run test:db && npm run test:integration",
     "e2e:prepare": "tsx scripts/e2e-fixtures.ts prepare",
     "e2e:verify": "tsx scripts/e2e-fixtures.ts verify",
@@ -32,6 +32,7 @@
     "expo": "~58.0.23",
     "expo-asset": "~58.0.20",
     "expo-constants": "~58.0.15",
+    "expo-crypto": "~58.0.7",
     "expo-file-system": "~58.0.13",
     "expo-font": "~58.0.11",
     "expo-linking": "~58.0.16",
@@ -56,7 +57,7 @@
     "jest-expo": "~58.0.14",
     "react-dom": "19.3.0",
     "react-test-renderer": "19.3.0",
-    "supabase": "2.58.5",
+    "supabase": "2.122.1",
     "test-renderer": "~1.3.1",
     "tsx": "4.20.6",
     "typescript": "~6.0.3"
@@ -64,10 +65,5 @@
   "private": true,
   "engines": {
     "node": "^22.13.0 || ^24.3.0 || ^26.0.0 || >=27.0.0"
-  },
-  "overrides": {
-    "supabase": {
-      "tar": "7.5.22"
-    }
   }
 }

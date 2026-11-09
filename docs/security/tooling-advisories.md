@@ -1,0 +1,17 @@
+# Tooling advisory register
+
+Owner: repository maintainer **Micha0371**. Last assessed: **2026-11-09**. Next review: **2026-12-01**, then the first day of every month. Also reassess on every dependency/lockfile change, new security notice, or change in production exposure. The owner records the date, audit counts and decision in this register.
+
+Current locked audit: **23 moderate, one low, zero high/critical**. These are affected package counts including transitive propagation, not 24 independent root vulnerabilities. The same counts remain after adding the SDK-matched Expo Crypto module for email PKCE.
+
+| Root advisory | Exposure / current decision | Remediation and review owner |
+| --- | --- | --- |
+| [glob GHSA-3g3m-2fjr-6pw4](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4) — moderate | Expo CLI/fingerprint and Jest file scans. The mobile app does not accept user-supplied glob patterns or expose these tools as a service. Temporarily accepted for this exposure. | Micha0371: track compatible Expo/Jest dependency updates. Fix starts at 14.0.2; current declared major ranges prevent a routine patch update. Do not force a cross-major override without compatibility validation. |
+| [minimatch GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) — moderate | Tooling pattern processing. Pantry names and remote application data are not passed into glob-pattern evaluation. Temporarily accepted for this exposure. | Micha0371: track compatible upstream updates; fix starts at 11.0.1. Validate fast, database and Android suites after dependency changes. |
+| [deepmerge GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) — low | Jest configuration merging with repository-owned configuration. Temporarily accepted. | Micha0371: no patched upstream release at assessment; track Jest/upstream replacement or fix. |
+
+The risk assessment concerns how packages are used, not npm's prod/dev dependency labels: Expo CLI can be a transitive production dependency in npm while still being build tooling. Keep CI read-only and without hosted Supabase management/mail credentials. PR code already executes in the isolated test runner; do not reuse that runner as an authenticated production service.
+
+Reassessment procedure: run `npm ci`, `npm audit --json` and `npm ls --all` from `pantry-flow`; inspect root advisories and dependency paths, check primary advisory/upstream release notes, and record any exposure change. Retain the full audit as an ignored verification artifact. A nonzero audit exit status with known moderate/low findings does not by itself establish a release blocker. Escalate before release if a finding becomes reachable from production input, severity becomes high/critical, or a practical exploit affects the build/release environment. Record the decision and run appropriate regressions; do not silence the audit or blindly use `npm audit fix --force`.
+
+Resolved in the SDK baseline: unused direct query-string removed and the old CLI tar dependency scoped to patched 7.5.22. Email acceptance requires CLI 2.122.1 because its local Auth 2.197.0 matches the hosted server and supports PKCE resend; this CLI distributes platform binaries and no longer uses that JavaScript tar path, so the obsolete override is removed. The audit still reports the same 23 moderate/one low findings. Reassess these decisions if dependency paths change.

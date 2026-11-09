@@ -62,3 +62,90 @@ case and separate reviewable fix; it must not silently alter this reference.
 | SDK-02 | Category first tap remains handled with keyboard open | `keyboard-contract.test.cjs`, async RNTL case, existing Maestro flow | Node/component, Maestro and physical keyboard-open first tap pass |
 | SDK-03 | Windows prebuild relocates native package correctly | `native-tooling.test.cjs` exercises actual Expo config plugin; Windows CI job | Original-module replay fails; corrected regression passes locally and on Windows CI |
 | SDK-04 | Fresh native fonts/icons and lifecycle work on SDK 58 | Existing Maestro native font/error checks and physical ARM64 smoke | Maestro and physical Android 16 pass; native icons visually verified |
+
+## Email confirmation release gate (PF-EMAIL-001)
+
+| ID | Behavior | Automated coverage | Remaining acceptance |
+| --- | --- | --- | --- |
+| EMAIL-01 | Confirmation-enabled signup has no session until valid link | Auth regressions; real local Auth/Mailpit integration; first-signup Maestro path separate from resend | Controlled custom-SMTP first signup passed on physical Android at 23:38 Berlin on 2026-11-09, with backend session verification |
+| EMAIL-02 | S256 PKCE callback exchanges once and survives restart | Native Crypto RFC 7636 vector; callback component tests; real Auth integration | Maestro and physical hosted callback passed |
+| EMAIL-03 | Expired/replayed/invalid links cannot authenticate | Parser and screen regressions; actual local Auth expiry and replay | Physical expired-link recovery passed |
+| EMAIL-04 | Resend creates a usable replacement; overlap and rate limits recover | Resend screen tests; actual local Auth/Mailpit resend | Hosted resend receipt and Android completion passed |
+| EMAIL-05 | Confirmation session restores after restart and isolates household | Real local session restore; Maestro confirmation-complete and fixture verification | Native suite passed in full run 42599010616; physical hosted callback session survived cold restart |
+
+Local email integration passed against Auth 2.197.0, matching hosted Auth.
+The pinned CLI 2.122.1 replaces the older local Auth that ignored resend PKCE
+challenges. This change is separate from the validated SDK baseline.
+
+### Custom SMTP investigation (2026-11-09)
+
+Resend delivered mail from `no-reply@auth.householdkit.app`. A fresh signup
+link, after click/open tracking were disabled, confirmed the controlled account
+but did not establish a hosted session (`last_sign_in_at` remained empty), and
+the Android app showed login. The earlier successful physical acceptance used
+a resent confirmation. It does not establish that initial custom-SMTP signup
+works. That initial failure was kept open until the final acceptance below.
+
+The native runner now exercises a valid first signup before resetting only the
+reserved local confirmation account and exercising expiry/resend. It checks
+the backend sign-in timestamp before any independent password login, explicitly
+stops/relaunches the app for session persistence, and retains separate first-link
+reports. Maestro receives an explicit device argument when `ANDROID_SERIAL` is
+set, since that ADB environment variable alone did not restrict Maestro's target.
+
+The first local investigation run used an outdated emulator APK lacking the
+current callback screen. Its failure is not evidence about the current source.
+After rebuilding, valid first-signup native confirmation, force-stop/relaunch
+persistence, logout and deliberately invalid callback recovery passed. The
+backend sign-in timestamp was verified before resetting that reserved fixture.
+Current local API integration (including first-link PKCE exchange, restart and
+replay) and fast checks also pass. These local results were kept separate from
+the hosted email/browser acceptance completed below.
+
+The focused fresh-APK native rerun also passed the existing actual expiry,
+resend, confirmation, force-stop/relaunch and invalid-link recovery path. Local
+fixture cleanup completed. This was the confirmation subset, not a new claim
+that the whole CRUD suite or hosted SMTP flow passed. Local reports are
+`.verification/maestro/confirmation-first-complete.xml`,
+`confirmation-resend.xml` and `confirmation-complete.xml` in the same directory.
+
+### Android initial-link startup race
+
+The diagnostic hosted signup used S256 and returned HTTP 200. Opening its email
+confirmed the account without a sign-in timestamp. Android recorded a VIEW
+launch into the test app, but the restarted Router received the root without
+the callback/code. The installed Router's Android initial-URL implementation
+uses a 150 ms timeout before substituting that root.
+
+`native-confirmation-link.test.cjs` executes that installed timeout boundary with
+a delayed React Native bridge and an already cached native confirmation. It
+failed with the original identity routing, and passes with `+native-intent.tsx`.
+The fallback uses Expo's native link cache only for initial Android root startup,
+accepts only the configured app's exact confirmation route, and clears that
+cache after handoff. Tests also cover foreign links, other navigation, expired
+callbacks, cache replay, unavailable native API and unchanged iOS behavior.
+The attempted emulator background-kill reproduction refused to proceed because
+Android had not actually killed the process; it is not counted as evidence.
+
+The startup fix is commit `85d0114`, separate from the harness commits. Local
+fast checks pass (50 Node checks, one RNTL case, target safety and typecheck).
+A fresh ARM64 build passed and the patched diagnostic test APK is installed.
+A token-free native error callback displayed translated recovery. Full CI run
+[42709533982](https://github.com/Micha0371/VSCode-Environment/actions/runs/42709533982)
+passed fast, database, Windows tooling and fresh Android/Maestro at `85d0114`.
+The real confirmation sent at 23:17 Berlin time was opened at 23:33. The patched
+app reached the actual callback and displayed invalid/expired recovery rather
+than login. Auth recorded confirmation at that click but no sign-in. This does
+not establish successful valid-link exchange or the precise expiry stage; a
+prompt live retry was needed. That consumed fixture was removed with
+exact relational and aggregate checks, and its obsolete password was removed.
+The fresh retry sent at 23:37 was opened at 23:38: the callback carried a code,
+the token request carried its stored verifier, and Auth returned HTTP 200 and
+recorded an actual sign-in. The protected empty pantry survived force-stop and
+relaunch. Logout returned to login, and exact fixture cleanup preserved the
+three manual-test accounts, three households and single pantry item. The
+successful callback was warm (`recovered: false`), so it verifies the real
+SMTP flow on the patched APK without proving that the fallback caused that
+success. The fallback is independently covered by the failing-before/passing-after
+delayed-bridge regression. Sender DNS authentication and code integration remain
+follow-ups, not claims established by the controlled recipient test.

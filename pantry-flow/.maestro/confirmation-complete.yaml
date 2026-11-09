@@ -1,0 +1,20 @@
+appId: com.pantryflow.test
+name: Native PKCE confirmation, restart persistence and invalid-link recovery
+---
+- openLink: ${MAESTRO_CONFIRMATION_URL}
+- assertVisible: Your pantry is empty
+- stopApp
+- launchApp
+- assertVisible: Your pantry is empty
+- tapOn: Settings
+- tapOn:
+    id: settings-signout
+- assertVisible:
+    id: login-submit
+- openLink: pantryflowtest://auth/callback?code=invalid-confirmation-code
+- assertVisible: This confirmation link is invalid or has expired
+- assertNotVisible: Your pantry is empty
+- tapOn:
+    id: confirmation-login
+- assertVisible:
+    id: login-submit

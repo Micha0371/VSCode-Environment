@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -27,8 +27,11 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submitLock = useRef(false);
 
   const onSubmit = async () => {
+    if (submitLock.current) return;
+    submitLock.current = true;
     setError(null);
     setSubmitting(true);
     try {
@@ -38,6 +41,7 @@ export default function RegisterScreen() {
     } catch {
       setError(t('err_register_failed'));
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
@@ -47,6 +51,7 @@ export default function RegisterScreen() {
       <Text style={styles.title}>{t('auth_check_email_title')}</Text>
       <Text style={styles.switchText}>{t('auth_check_email_message')}</Text>
       <Button label={t('auth_go_to_login')} onPress={() => router.replace('/(auth)/login')} />
+      <Button testID="register-resend-confirmation" label={t('auth_resend_confirmation')} onPress={() => router.replace('/(auth)/confirm-email')} />
     </View>
   </SafeAreaView>;
 

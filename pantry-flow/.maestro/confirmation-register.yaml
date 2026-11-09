@@ -1,0 +1,21 @@
+appId: com.pantryflow.test
+name: Confirmation-required native registration
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: go-register
+- tapOn:
+    id: register-name
+- inputText: Confirmation Test
+- tapOn:
+    id: register-email
+- inputText: pf.test.confirm@example.com
+- tapOn:
+    id: register-password
+- inputText: PF-local-test-only-9281!
+- hideKeyboard
+- tapOn:
+    id: register-submit
+- assertVisible: Check your email
+- assertNotVisible: Your pantry is empty

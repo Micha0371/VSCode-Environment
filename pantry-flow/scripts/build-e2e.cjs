@@ -34,6 +34,10 @@ const linked = JSON.parse(execFileSync(process.execPath, [path.join(root, 'node_
 if (!linked.modules?.some(module => module.packageName === 'expo-file-system')) {
   throw new Error('Native regression: expo-file-system is absent from Android autolinking; fonts/assets will fail');
 }
+if (JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).dependencies['expo-crypto'] &&
+    !linked.modules?.some(module => module.packageName === 'expo-crypto')) {
+  throw new Error('Native regression: expo-crypto is absent; secure confirmation cannot run');
+}
 const manifest = path.join(work, 'android/app/src/main/AndroidManifest.xml');
 let xml = fs.readFileSync(manifest, 'utf8');
 xml = xml.replace(/\sandroid:usesCleartextTraffic="[^"]*"/g, '').replace('<application ', '<application android:usesCleartextTraffic="true" ');

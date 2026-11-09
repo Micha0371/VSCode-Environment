@@ -88,6 +88,11 @@ export default function LoginScreen() {
               </Pressable>
             </Link>
           </View>
+          <Link href="/(auth)/confirm-email" asChild>
+            <Pressable testID="login-resend-confirmation">
+              <Text style={[styles.switchLink, styles.resendLink]}>{t('auth_resend_confirmation')}</Text>
+            </Pressable>
+          </Link>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -114,4 +119,5 @@ const styles = StyleSheet.create({
   },
   switchText: { ...typography.body, color: colors.textMuted },
   switchLink: { ...typography.body, color: colors.primary, fontWeight: '600' },
+  resendLink: { textAlign: 'center' },
 });
