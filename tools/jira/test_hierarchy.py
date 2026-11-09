@@ -27,6 +27,18 @@ def parent(type_id="10", level=1, key="PF-1", project="PF"):
 
 
 class HierarchyTests(unittest.TestCase):
+    def test_identifier_validation_still_rejects_non_ascii_digits(self):
+        for value in ("١٢", "１２", "1٢", "1２"):
+            with self.subTest(value=value), self.assertRaises(jira.Failure):
+                jira.numeric_id(value)
+        self.assertEqual(jira.numeric_id("123"), "123")
+        with tempfile.TemporaryDirectory() as directory:
+            for invalid in ({"issueTypeId": "١٠"}, {"issueTypeId": "１０"},
+                            {"parentKey": "PF-1٢"}, {"parentKey": "PF-1２"}):
+                file = self.write_input(directory, **invalid)
+                with self.subTest(invalid=invalid), self.assertRaises(jira.Failure):
+                    jira.input_fields(file, create=True)
+
     def test_subtask_without_parent_or_priority_fails_before_preview_or_write(self):
         with tempfile.TemporaryDirectory() as directory:
             file = self.write_input(directory, issueTypeId="30")
