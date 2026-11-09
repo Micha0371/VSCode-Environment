@@ -284,8 +284,8 @@ def creation_metadata(jira, project, type_id=None):
 
 
 def validate_creation_relationships(jira, project, fields):
-    if "parent" not in fields and "priority" not in fields:
-        return
+    # Missing optional input fields must not bypass a type's required parent.
+    # Run the same read-only preflight for previews and applied creations.
     metadata = creation_metadata(jira, project, fields["issuetype"]["id"])
     available = {f["id"]: f for f in metadata["fields"]}
     for name in ("parent", "priority"):

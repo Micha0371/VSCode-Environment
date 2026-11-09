@@ -106,7 +106,12 @@ comments, cross-project issue keys and project moves. Required Jira fields beyon
 this subset must be supported explicitly before using a project that needs them.
 `metadata` reads the configured project's creatable types. With `--issue-type ID`
 it returns the type's hierarchy level, field requirements and allowed priority IDs.
-It is read-only and paginates creation metadata. Hierarchical creation validates
+It is read-only and paginates creation metadata.
+Every create preview and applied creation reads this metadata, including when
+neither parentKey nor priorityId is supplied. Creation therefore requires metadata
+read access; a permission or metadata failure stops before the mutation request.
+Unparented standard Tasks remain supported; Subtasks require a parent.
+Hierarchical creation validates
 the canonical parent key/project and actual type levels: a standard issue can have
 an Epic parent; a Subtask must have a standard-issue parent. Cross-project parents,
 moved aliases, unsupported/missing hierarchy levels and unavailable priorities are

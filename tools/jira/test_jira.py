@@ -40,6 +40,12 @@ def args(command, **kwargs):
 IDENTITY = {"key": "PF-1", "fields": {"project": {"key": "PF"}}}
 
 
+def standard_creation_metadata():
+    return [(200, {"issueTypes": [{"id": "10", "name": "Task"}], "total": 1}),
+            (200, {"id": "10", "name": "Task", "hierarchyLevel": 0}),
+            (200, {"fields": [], "total": 0})]
+
+
 class IntegrationTests(unittest.TestCase):
     def test_credentials_refuse_unapproved_target_before_access(self):
         with self.assertRaises(jira.Failure):
@@ -135,15 +141,15 @@ class IntegrationTests(unittest.TestCase):
             file = Path(directory) / "issue.json"
             file.write_text(json.dumps({"summary": " Task ", "description": "First\nSecond",
                                         "issueTypeId": "10", "labels": ["pantryflow"]}), encoding="utf-8")
-            api, http = client([])
+            api, http = client(standard_creation_metadata())
             result = jira.execute(args("create", input=str(file), apply=False), api, {"project": "PF"})
             self.assertTrue(result["preview"])
-            self.assertEqual(http.calls, [])
+            self.assertTrue(all(c[0] == "GET" for c in http.calls))
             self.assertEqual(result["fields"]["project"], {"key": "PF"})
             self.assertEqual(result["fields"]["description"]["type"], "doc")
-            api, http = client([(201, {"key": "PF-2"})])
+            api, http = client(standard_creation_metadata() + [(201, {"key": "PF-2"})])
             self.assertEqual(jira.execute(args("create", input=str(file), apply=True), api, {"project": "PF"})["created"], "PF-2")
-            self.assertEqual(http.calls[0][0], "POST")
+            self.assertEqual(http.calls[-1][0], "POST")
             file.write_text('{"summary":"Changed"}', encoding="utf-8")
             api, http = client([(200, IDENTITY), (204, {})])
             self.assertEqual(jira.execute(args("update", key="PF-1", input=str(file), apply=True), api, {"project": "PF"})["updated"], "PF-1")

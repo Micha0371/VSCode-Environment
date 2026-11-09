@@ -27,6 +27,33 @@ def parent(type_id="10", level=1, key="PF-1", project="PF"):
 
 
 class HierarchyTests(unittest.TestCase):
+    def test_subtask_without_parent_or_priority_fails_before_preview_or_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = self.write_input(directory, issueTypeId="30")
+            for apply in (False, True):
+                api, http = client(metadata("30", -1, priority=False))
+                with self.subTest(apply=apply), self.assertRaisesRegex(jira.Failure, "requires a parent"):
+                    jira.execute(args("create", input=file, apply=apply), api, {"project": "PF"})
+                self.assertTrue(all(c[0] == "GET" for c in http.calls))
+
+    def test_unparented_task_still_previews_and_creates_without_new_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = self.write_input(directory)
+            for apply in (False, True):
+                responses = metadata() + ([(201, {"key": "PF-2"})] if apply else [])
+                api, http = client(responses)
+                result = jira.execute(args("create", input=file, apply=apply), api, {"project": "PF"})
+                self.assertEqual(len([c for c in http.calls if c[0] == "POST"]), int(apply))
+                self.assertEqual(result.get("created") if apply else result["preview"], "PF-2" if apply else True)
+
+    def test_missing_creation_metadata_permission_stops_before_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = self.write_input(directory)
+            api, http = client([(403, {})])
+            with self.assertRaisesRegex(jira.Failure, "Access denied"):
+                jira.execute(args("create", input=file, apply=True), api, {"project": "PF"})
+            self.assertTrue(all(c[0] == "GET" for c in http.calls))
+
     def write_input(self, directory, **extras):
         path = Path(directory) / "issue.json"
         path.write_text(json.dumps({"summary": "Fixture", "issueTypeId": "20", **extras}), encoding="utf-8")
