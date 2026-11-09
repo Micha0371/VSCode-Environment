@@ -28,7 +28,7 @@ class FakeHTTP:
 
 def client(responses):
     transport = FakeHTTP(responses)
-    api = jira.Jira(SECRETS, http=transport)
+    api = jira.Jira(SECRETS, http=transport, allow_writes=True)
     api.base = "https://pantry-test.atlassian.net/rest/api/3"
     return api, transport
 
