@@ -228,7 +228,89 @@ def issue_view(item, site):
             "summary": fields.get("summary"), "description": fields.get("description"),
             "status": (fields.get("status") or {}).get("name"),
             "issueType": (fields.get("issuetype") or {}).get("name"),
+            "issueTypeId": (fields.get("issuetype") or {}).get("id"),
+            "parent": {"key": fields["parent"].get("key")} if fields.get("parent") else None,
+            "priority": {"id": fields["priority"].get("id"), "name": fields["priority"].get("name")} if fields.get("priority") else None,
             "labels": fields.get("labels", []), "updated": fields.get("updated")}
+
+
+def numeric_id(value):
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9]{1,20}", value):
+        raise Failure("Metadata IDs must be numeric strings")
+    return value
+
+
+def metadata_pages(jira, route, field):
+    results = []
+    start = 0
+    for _ in range(100):
+        page = jira.call("GET", route + "?maxResults=50&startAt=" + str(start))
+        entries = page.get(field)
+        if not isinstance(entries, list):
+            raise Failure("Invalid creation metadata response")
+        results.extend(entries)
+        total = page.get("total")
+        if page.get("isLast") is True or (isinstance(total, int) and len(results) >= total):
+            return results
+        if not entries or not isinstance(total, int):
+            raise Failure("Incomplete creation metadata; refusing to guess")
+        start += len(entries)
+    raise Failure("Creation metadata exceeded pagination limit")
+
+
+def creation_metadata(jira, project, type_id=None):
+    types = metadata_pages(jira, "/issue/createmeta/" + project + "/issuetypes", "issueTypes")
+    selected = [{"id": t["id"], "name": t["name"], "subtask": t.get("subtask", False)} for t in types]
+    if type_id is None:
+        return {"project": project, "issueTypes": selected}
+    numeric_id(type_id)
+    if type_id not in {t["id"] for t in types}:
+        raise Failure("Issue type is not creatable in the configured project")
+    detail = jira.call("GET", "/issuetype/" + type_id)
+    if detail.get("id") != type_id or type(detail.get("hierarchyLevel")) is not int:
+        raise Failure("Issue hierarchy level is unavailable; refusing to guess")
+    fields = metadata_pages(jira, "/issue/createmeta/" + project + "/issuetypes/" + type_id, "fields")
+    output = []
+    for field in fields:
+        identifier = field.get("fieldId", field.get("key"))
+        entry = {"id": identifier, "name": field.get("name"), "required": field.get("required", False),
+                 "hasDefaultValue": field.get("hasDefaultValue", False)}
+        if identifier == "priority":
+            entry["allowedValues"] = [{"id": v["id"], "name": v["name"]} for v in field.get("allowedValues", [])]
+        output.append(entry)
+    return {"project": project, "issueTypes": selected,
+            "selectedType": {"id": type_id, "name": detail.get("name"), "hierarchyLevel": detail["hierarchyLevel"]},
+            "fields": output}
+
+
+def validate_creation_relationships(jira, project, fields):
+    # Missing optional input fields must not bypass a type's required parent.
+    # Run the same read-only preflight for previews and applied creations.
+    metadata = creation_metadata(jira, project, fields["issuetype"]["id"])
+    available = {f["id"]: f for f in metadata["fields"]}
+    for name in ("parent", "priority"):
+        if name in fields and name not in available:
+            raise Failure("Requested relationship or priority is not supported by the creation metadata")
+    if "priority" in fields and fields["priority"]["id"] not in {
+            v["id"] for v in available["priority"].get("allowedValues", [])}:
+        raise Failure("Priority is not available for the selected project and issue type")
+    level = metadata["selectedType"]["hierarchyLevel"]
+    if "parent" not in fields:
+        if level < 0:
+            raise Failure("Subtask creation requires a parent")
+        return
+    parent_key = issue_key(fields["parent"]["key"], project)
+    parent = jira.call("GET", "/issue/" + parent_key + "?fields=project,issuetype")
+    parent_fields = parent.get("fields", {})
+    if parent.get("key") != parent_key or parent_fields.get("project", {}).get("key") != project:
+        raise Failure("Parent moved or belongs to another project")
+    parent_type = numeric_id(parent_fields.get("issuetype", {}).get("id"))
+    detail = jira.call("GET", "/issuetype/" + parent_type)
+    if detail.get("id") != parent_type or type(detail.get("hierarchyLevel")) is not int:
+        raise Failure("Parent hierarchy level is unavailable; refusing to guess")
+    # Limit v1 hierarchy support to the approved Epic -> standard issue -> subtask shape.
+    if (level, detail["hierarchyLevel"]) not in ((0, 1), (-1, 0)):
+        raise Failure("Parent must be an Epic for a standard issue, or a standard issue for a subtask")
 
 
 def input_fields(filename, create=False):
@@ -239,7 +321,7 @@ def input_fields(filename, create=False):
         value = json.loads(file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         raise Failure("Input must be a UTF-8 JSON file smaller than 100 KB") from None
-    allowed = {"summary", "description", "labels"} | ({"issueTypeId"} if create else set())
+    allowed = {"summary", "description", "labels"} | ({"issueTypeId", "parentKey", "priorityId"} if create else set())
     if not isinstance(value, dict) or not value or set(value) - allowed:
         raise Failure("Unsupported input fields; see tools/jira/README.md")
     result = {}
@@ -264,6 +346,12 @@ def input_fields(filename, create=False):
         if not isinstance(value["issueTypeId"], str) or not re.fullmatch(r"[0-9]+", value["issueTypeId"]):
             raise Failure("issueTypeId must be a numeric string from check")
         result["issuetype"] = {"id": value["issueTypeId"]}
+        if "parentKey" in value:
+            if not isinstance(value["parentKey"], str) or not re.fullmatch(r"[A-Z][A-Z0-9_]{1,29}-[1-9][0-9]*", value["parentKey"]):
+                raise Failure("Invalid parent issue key")
+            result["parent"] = {"key": value["parentKey"]}
+        if "priorityId" in value:
+            result["priority"] = {"id": numeric_id(value["priorityId"])}
     return result
 
 
@@ -283,13 +371,15 @@ def execute(args, jira, settings):
     if not project:
         raise Failure("Configure a project first: jira.py configure --project KEY")
     project_key(project)
+    if args.command == "metadata":
+        return creation_metadata(jira, project, args.issue_type)
     if args.command == "list":
         query = "project = " + jql_string(project)
         if args.status:
             query += " AND status = " + jql_string(args.status)
         query += " ORDER BY updated DESC"
         body = {"jql": query, "maxResults": args.limit,
-                "fields": ["summary", "status", "issuetype", "labels", "updated"]}
+                "fields": ["summary", "status", "issuetype", "labels", "updated", "parent", "priority"]}
         if args.page:
             body["nextPageToken"] = args.page
         result = jira.call("POST", "/search/jql", body)
@@ -300,6 +390,7 @@ def execute(args, jira, settings):
     if args.command == "create":
         fields = input_fields(args.input, create=True)
         fields["project"] = {"key": project}
+        validate_creation_relationships(jira, project, fields)
         if not args.apply:
             return {"preview": True, "operation": "create", "fields": fields}
         result = jira.call("POST", "/issue", {"fields": fields})
@@ -314,7 +405,7 @@ def execute(args, jira, settings):
     if identity.get("key") != key or identity.get("fields", {}).get("project", {}).get("key") != project:
         raise Failure("Issue moved or project identity did not match; refusing operation")
     if args.command == "get":
-        result = jira.call("GET", route + "?fields=summary,description,status,issuetype,labels,updated")
+        result = jira.call("GET", route + "?fields=summary,description,status,issuetype,labels,updated,parent,priority")
         if result.get("key") != key:
             raise Failure("Jira issue identity did not match request")
         return issue_view(result, jira.site)
@@ -341,6 +432,8 @@ def parser():
     p = SafeParser(description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
     sub.add_parser("check")
+    meta = sub.add_parser("metadata")
+    meta.add_argument("--issue-type", type=numeric_id)
     cfg = sub.add_parser("configure")
     cfg.add_argument("--project", required=True, type=project_key)
     cfg.add_argument("--auth-mode", choices=["auto", "classic", "scoped"], default="auto")

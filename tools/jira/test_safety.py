@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import jira
 from urllib import error
-from test_jira import SECRETS, FakeHTTP, IDENTITY, args, client
+from test_jira import SECRETS, FakeHTTP, IDENTITY, args, client, standard_creation_metadata
 
 
 class SafetyTests(unittest.TestCase):
@@ -59,7 +59,8 @@ class SafetyTests(unittest.TestCase):
                     if invalid:
                         payload["project"] = "OTHER"
                     file.write_text(json.dumps(payload), encoding="utf-8")
-                    api, http = client([(200, IDENTITY), (200, {"transitions": [{"id": "31", "name": "Done"}]})])
+                    responses = standard_creation_metadata() if command == "create" else [(200, IDENTITY), (200, {"transitions": [{"id": "31", "name": "Done"}]})]
+                    api, http = client(responses)
                     call = args(command, key="PF-1", input=str(file), apply=False,
                                 to="Unavailable" if invalid else "Done")
                     if invalid:
@@ -90,10 +91,10 @@ class SafetyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "issue.json"
             file.write_text('{"summary":"Fixture","issueTypeId":"10"}', encoding="utf-8")
-            api, http = client([(201, {"unexpected": SECRETS["token"]})])
+            api, http = client(standard_creation_metadata() + [(201, {"unexpected": SECRETS["token"]})])
             with self.assertRaises(jira.WriteOutcomeUnknown):
                 jira.execute(args("create", input=str(file), apply=True), api, {"project": "PF"})
-            self.assertEqual(len(http.calls), 1)
+            self.assertEqual(len([c for c in http.calls if c[0] == "POST"]), 1)
 
     def test_rate_limit_headers_are_sanitized_and_not_automatically_retried(self):
         for header, expected in [("45", 45), (SECRETS["token"], None), ("999999999", None)]:
