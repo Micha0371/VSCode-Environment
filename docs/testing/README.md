@@ -28,7 +28,7 @@ npm ci
 npm run test:fast
 ```
 
-This runs TypeScript, the original Node/React/PGlite regressions plus lifecycle/i18n checks, one focused Jest/RNTL keyboard-category test, and the local-target safety guard. `npm test` preserves the original Node suite command. Jest uses the SDK 52 preset and React 18-compatible RNTL; migrating the existing suite to Jest would add duplication without behavioral benefit. These test-only dependencies do not upgrade Expo.
+This runs TypeScript, the original Node/React/PGlite regressions plus lifecycle/i18n checks, one focused Jest/RNTL keyboard-category test, and the local-target safety guard. `npm test` preserves the original Node suite command. Jest uses the SDK 58 `jest-expo` preset and RNTL 14 with React 19; migrating the existing suite to Jest would add duplication without behavioral benefit.
 
 ## Disposable Supabase
 

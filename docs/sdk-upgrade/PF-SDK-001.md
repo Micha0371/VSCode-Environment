@@ -1,6 +1,6 @@
 # PF-SDK-001 — Expo SDK/tooling upgrade
 
-Status: implemented and validated for Android/application/database behavior; SonarCloud quality gate passed after the owner reviewed S5332 as False Positive. [PR #2](https://github.com/Micha0371/VSCode-Environment/pull/2) is ready for review and is not merged. Branch `pantryflow/pf-sdk-001` starts from protected main `5b10411`; the Slice 1.1 baseline remains intact.
+Status: implemented and validated for Android/application/database behavior; SonarCloud quality gate passed after the owner reviewed S5332 as False Positive. [PR #2](https://github.com/Micha0371/VSCode-Environment/pull/2) is merged into main at `ca6befc`, which is also the annotated baseline tag `pantryflow/sdk58-validated`. Branch `pantryflow/pf-sdk-001` starts from protected main `5b10411`; the Slice 1.1 baseline remains intact.
 
 Expo is upgraded from SDK 52 to 58.0.23, React Native from 0.76.9 to 0.88.1, and React from 18.3.1 to 19.3.0. TypeScript 6.0.3, Jest 30.5.2 and RNTL 14.1.0 match the SDK. There are no new database migrations, business rules, features or screen redesigns. Supabase JS, PGlite, tsx and URL-polyfill resolved versions remain unchanged.
 
