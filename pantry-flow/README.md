@@ -154,10 +154,12 @@ UUID generator; migration permissions, constraints, and triggers run unchanged.
 These checks do not replace device tests or inspection of the hosted project's
 actual grants, auth settings, migration state, and existing data.
 
-The SDK 52 dependency tree has outstanding security advisories in legacy tooling.
-Compatible patches and an npm lockfile are included; a supported Expo SDK upgrade
-and native-device validation are still needed before a production release. Do
-not use `npm audit fix --force` as a substitute for that migration.
+The app runs on Expo SDK 58 (PF-SDK-001, merged in PR #2 and tagged
+`pantryflow/sdk58-validated`), validated on Android emulator and a physical
+Android device; iOS compilation is not yet verified. The locked tree retains
+moderate/low tooling advisories with no high/critical findings; see the advisory
+review in [PF-SDK-001](../docs/sdk-upgrade/PF-SDK-001.md). Do not use
+`npm audit fix --force` to clear them.
 
 ## Behavioral regression harness
 
