@@ -67,11 +67,11 @@ case and separate reviewable fix; it must not silently alter this reference.
 
 | ID | Behavior | Automated coverage | Remaining acceptance |
 | --- | --- | --- | --- |
-| EMAIL-01 | Confirmation-enabled signup has no session until valid link | Auth regressions; real local Auth/Mailpit integration | Hosted mailbox receipt |
-| EMAIL-02 | S256 PKCE callback exchanges once and survives restart | Native Crypto RFC 7636 vector; callback component tests; real Auth integration | Maestro passed; physical hosted callback pending |
-| EMAIL-03 | Expired/replayed/invalid links cannot authenticate | Parser and screen regressions; actual local Auth expiry and replay | Physical expired-link recovery |
-| EMAIL-04 | Resend creates a usable replacement; overlap and rate limits recover | Resend screen tests; actual local Auth/Mailpit resend | Hosted second-message receipt and Android completion |
-| EMAIL-05 | Confirmation session restores after restart and isolates household | Real local session restore; Maestro confirmation-complete and fixture verification | Native suite passed in full run 42599010616 |
+| EMAIL-01 | Confirmation-enabled signup has no session until valid link | Auth regressions; real local Auth/Mailpit integration | Hosted receipt and same-device Android callback passed 2026-11-09 |
+| EMAIL-02 | S256 PKCE callback exchanges once and survives restart | Native Crypto RFC 7636 vector; callback component tests; real Auth integration | Maestro and physical hosted callback passed |
+| EMAIL-03 | Expired/replayed/invalid links cannot authenticate | Parser and screen regressions; actual local Auth expiry and replay | Physical expired-link recovery passed |
+| EMAIL-04 | Resend creates a usable replacement; overlap and rate limits recover | Resend screen tests; actual local Auth/Mailpit resend | Hosted resend receipt and Android completion passed |
+| EMAIL-05 | Confirmation session restores after restart and isolates household | Real local session restore; Maestro confirmation-complete and fixture verification | Native suite passed in full run 42599010616; physical hosted callback session survived cold restart |
 
 Local email integration passed against Auth 2.197.0, matching hosted Auth.
 The pinned CLI 2.122.1 replaces the older local Auth that ignored resend PKCE

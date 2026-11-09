@@ -2,9 +2,9 @@
 
 | Task | Priority | Acceptance |
 | --- | --- | --- |
-| PF-SDK-001 — Upgrade Expo SDK/tooling | P1 before production | Implemented and Android-validated in PR #2 (ready for review, not merged): Expo 58, locked compatible dependencies, advisory review, fast/database/Android suites, physical-device smoke and SonarCloud gate passed. See ../sdk-upgrade/PF-SDK-001.md. iOS compilation remains unverified on Windows. |
-| PF-EMAIL-001 — Verify real confirmation-email registration | P1 before production | Dedicated test project/provider; delivered email, correct redirect/expiry, unconfirmed login rejected, confirmation followed by login, duplicate registration privacy and recovery checked. Local admin confirmation and simulated UI responses do not satisfy delivery. |
-| PF-CLEANUP-001 — Remove historical disposable hosted accounts | P2 before production | Delete the three prior verification accounts through authorized dashboard/admin access, confirm their test households/inventory removed, and remove ignored credentials. Current local fixture cleanup does not touch hosted accounts. |
+| PF-SDK-001 — Upgrade Expo SDK/tooling | P1 before production | Completed and merged as PR #2; protected-main full regression and Android/physical smoke passed. See ../release-readiness/2026-11-09.md. iOS compilation remains unverified on Windows. |
+| PF-EMAIL-001 — Verify real confirmation-email registration | P1 before production | Controlled real-recipient/Android validation passed on 2026-11-09: actual resend receipt, same-device callback authentication, cold restart, logout and consumed-link replay; prior real expiry and translated rate-limit recovery also verified. PR #3 still requires review/current CI/merge. Default sender restricts recipients: production SMTP and delivery to a normal non-organization mailbox remain required before public signup. See ../release-readiness/2026-11-09.md for precise scope. |
+| PF-CLEANUP-001 — Remove historical disposable hosted accounts | P2 before production | Completed: three generated historical fixtures and the final email-test fixture removed with exact/aggregate cascade verification; obsolete generated passwords removed. Owner explicitly retained the three manual-test accounts, their households and one item. Local fixture cleanup remains isolated from hosted data. |
 
 PF-TEST-001 completion requires a recorded clean full-suite run. Do not mark a
 new release/tag validated while Android or database runs remain pending.
