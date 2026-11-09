@@ -1,0 +1,23 @@
+name: Jira local tooling
+on:
+  pull_request:
+    paths: ['tools/jira/**', '.github/workflows/jira-tooling.yml']
+  push:
+    branches: [main]
+    paths: ['tools/jira/**', '.github/workflows/jira-tooling.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  jira-fixtures:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m unittest discover -s tools/jira -p test_*.py -v
