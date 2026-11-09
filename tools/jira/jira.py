@@ -124,7 +124,7 @@ class HTTP:
             exc.close()
             if status == 429:
                 # Only emit a bounded integer, never the raw header or error body.
-                seconds = int(retry) if re.fullmatch(r"[0-9]{1,5}", retry) else None
+                seconds = int(retry) if re.fullmatch(r"\d{1,5}", retry, flags=re.ASCII) else None
                 raise RateLimited(seconds) from None
             # Never echo a server error body, request headers or arbitrary exception.
             return status, {}
@@ -235,7 +235,7 @@ def issue_view(item, site):
 
 
 def numeric_id(value):
-    if not isinstance(value, str) or not re.fullmatch(r"[0-9]{1,20}", value):
+    if not isinstance(value, str) or not re.fullmatch(r"\d{1,20}", value, flags=re.ASCII):
         raise Failure("Metadata IDs must be numeric strings")
     return value
 
@@ -343,11 +343,11 @@ def input_fields(filename, create=False):
             raise Failure("Labels must be up to 20 simple names without spaces")
         result["labels"] = value["labels"]
     if create:
-        if not isinstance(value["issueTypeId"], str) or not re.fullmatch(r"[0-9]+", value["issueTypeId"]):
+        if not isinstance(value["issueTypeId"], str) or not re.fullmatch(r"\d+", value["issueTypeId"], flags=re.ASCII):
             raise Failure("issueTypeId must be a numeric string from check")
         result["issuetype"] = {"id": value["issueTypeId"]}
         if "parentKey" in value:
-            if not isinstance(value["parentKey"], str) or not re.fullmatch(r"[A-Z][A-Z0-9_]{1,29}-[1-9][0-9]*", value["parentKey"]):
+            if not isinstance(value["parentKey"], str) or not re.fullmatch(r"[A-Z][A-Z0-9_]{1,29}-[1-9]\d*", value["parentKey"], flags=re.ASCII):
                 raise Failure("Invalid parent issue key")
             result["parent"] = {"key": value["parentKey"]}
         if "priorityId" in value:

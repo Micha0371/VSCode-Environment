@@ -97,7 +97,7 @@ class SafetyTests(unittest.TestCase):
             self.assertEqual(len([c for c in http.calls if c[0] == "POST"]), 1)
 
     def test_rate_limit_headers_are_sanitized_and_not_automatically_retried(self):
-        for header, expected in [("45", 45), (SECRETS["token"], None), ("999999999", None)]:
+        for header, expected in [("45", 45), (SECRETS["token"], None), ("999999999", None), ("١٢", None), ("１２", None)]:
             api = jira.HTTP()
             failure = error.HTTPError(SECRETS["site"], 429, "rate limited", {"Retry-After": header},
                                       io.BytesIO(SECRETS["token"].encode()))
