@@ -147,5 +147,5 @@ three manual-test accounts, three households and single pantry item. The
 successful callback was warm (`recovered: false`), so it verifies the real
 SMTP flow on the patched APK without proving that the fallback caused that
 success. The fallback is independently covered by the failing-before/passing-after
-delayed-bridge regression. Sender DNS authentication and code integration remain
-follow-ups, not claims established by the controlled recipient test.
+delayed-bridge regression. Subsequent integration and sender-authentication
+verification are recorded in the [2026-11-10 evidence](../release-readiness/2026-11-10-email-authentication.md), including public DNS and fresh Gmail SPF/DKIM/DMARC PASS. The initial recipient test alone did not establish those results.
