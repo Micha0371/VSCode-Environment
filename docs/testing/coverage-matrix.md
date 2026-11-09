@@ -67,7 +67,7 @@ case and separate reviewable fix; it must not silently alter this reference.
 
 | ID | Behavior | Automated coverage | Remaining acceptance |
 | --- | --- | --- | --- |
-| EMAIL-01 | Confirmation-enabled signup has no session until valid link | Auth regressions; real local Auth/Mailpit integration | Hosted receipt and same-device Android callback passed 2026-11-09 |
+| EMAIL-01 | Confirmation-enabled signup has no session until valid link | Auth regressions; real local Auth/Mailpit integration; first-signup Maestro path added separately from resend | Hosted default-sender resend passed; initial custom-SMTP confirmation returned to login on 2026-11-09 and remains under investigation |
 | EMAIL-02 | S256 PKCE callback exchanges once and survives restart | Native Crypto RFC 7636 vector; callback component tests; real Auth integration | Maestro and physical hosted callback passed |
 | EMAIL-03 | Expired/replayed/invalid links cannot authenticate | Parser and screen regressions; actual local Auth expiry and replay | Physical expired-link recovery passed |
 | EMAIL-04 | Resend creates a usable replacement; overlap and rate limits recover | Resend screen tests; actual local Auth/Mailpit resend | Hosted resend receipt and Android completion passed |
@@ -76,3 +76,35 @@ case and separate reviewable fix; it must not silently alter this reference.
 Local email integration passed against Auth 2.197.0, matching hosted Auth.
 The pinned CLI 2.122.1 replaces the older local Auth that ignored resend PKCE
 challenges. This change is separate from the validated SDK baseline.
+
+### Custom SMTP investigation (2026-11-09)
+
+Resend delivered mail from `no-reply@auth.householdkit.app`. A fresh signup
+link, after click/open tracking were disabled, confirmed the controlled account
+but did not establish a hosted session (`last_sign_in_at` remained empty), and
+the Android app showed login. The earlier successful physical acceptance used
+a resent confirmation. It does not establish that initial custom-SMTP signup
+works. This release gate remains open; no application fix is yet claimed.
+
+The native runner now exercises a valid first signup before resetting only the
+reserved local confirmation account and exercising expiry/resend. It checks
+the backend sign-in timestamp before any independent password login, explicitly
+stops/relaunches the app for session persistence, and retains separate first-link
+reports. Maestro receives an explicit device argument when `ANDROID_SERIAL` is
+set, since that ADB environment variable alone did not restrict Maestro's target.
+
+The first local investigation run used an outdated emulator APK lacking the
+current callback screen. Its failure is not evidence about the current source.
+After rebuilding, valid first-signup native confirmation, force-stop/relaunch
+persistence, logout and deliberately invalid callback recovery passed. The
+backend sign-in timestamp was verified before resetting that reserved fixture.
+Current local API integration (including first-link PKCE exchange, restart and
+replay) and fast checks also pass. This does not verify the hosted email/browser
+handoff, which remains under investigation using a temporary diagnostic test APK.
+
+The focused fresh-APK native rerun also passed the existing actual expiry,
+resend, confirmation, force-stop/relaunch and invalid-link recovery path. Local
+fixture cleanup completed. This was the confirmation subset, not a new claim
+that the whole CRUD suite or hosted SMTP flow passed. Local reports are
+`.verification/maestro/confirmation-first-complete.xml`,
+`confirmation-resend.xml` and `confirmation-complete.xml` in the same directory.
