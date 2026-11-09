@@ -100,9 +100,20 @@ already has email auto-confirm enabled; it never changes auth settings. Those
 accounts remain available for device tests and require dashboard deletion when
 no longer needed. Their generated passwords are never printed or committed.
 
-Email confirmation may stay enabled. Registration displays confirmation
-instructions when Supabase returns no session; users confirm their address and
-then sign in. Auth startup and sign-out failures have visible recovery states.
+Email confirmation should be enabled for the confirmation release gate. Add exact
+redirect URLs `pantryflow://auth/callback` and `pantryflowtest://auth/callback` in
+Supabase Auth URL Configuration. Open the newest email link on the same installed
+app/device that registered or requested the resend: S256 PKCE binds the link to
+its persisted verifier. Opening on another device can confirm the email without
+authenticating the original app; normal password sign-in remains available.
+
+The login screen offers resend/recovery after restart. Invalid or expired callbacks
+show translated recovery without granting access. Hosted delivery and Android
+acceptance status are tracked in `../docs/release-readiness/2026-11-09.md`.
+Local `npm run test:integration` verifies real confirmation, expiry, resend, replay
+and session restoration through disposable Auth/Mailpit. `npm run test:e2e` includes
+the native confirmation journeys after the original Slice 1.1 flow. Auth startup
+and sign-out failures retain their visible recovery states.
 
 Smoke test on a device against a disposable account:
 
