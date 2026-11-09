@@ -37,6 +37,7 @@ class SafetyTests(unittest.TestCase):
             api = jira.Jira(SECRETS, http=http, allow_writes=enabled)
             api.base = SECRETS["site"] + "/rest/api/3"
             for method, route in [("POST", "/issue"), ("PUT", "/issue/PF-1"),
+                                  ("PATCH", "/issue/PF-1"),
                                   ("POST", "/issue/PF-1/transitions"), ("DELETE", "/issue/PF-1")]:
                 with self.subTest(enabled=enabled, method=method), self.assertRaises(jira.Failure):
                     api.call(method, route, {})
