@@ -16,6 +16,18 @@ defaults:
     working-directory: pantry-flow
     shell: bash
 jobs:
+  windows-tooling:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: pantry-flow/package-lock.json
+      - run: npm ci
+      - run: node --test tests/native-tooling.test.cjs
   fast:
     runs-on: ubuntu-latest
     timeout-minutes: 15

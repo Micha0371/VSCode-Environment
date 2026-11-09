@@ -53,3 +53,12 @@ selection, premium limits, quantities/expiry/batches, filters, pull-to-refresh,
 offline queue, password reset and OAuth. Tests must not add them to make a
 scenario pass. A discovered behavioral defect gets its own reproducible failing
 case and separate reviewable fix; it must not silently alter this reference.
+
+## SDK upgrade compatibility gates (PF-SDK-001)
+
+| ID | Behavior | Coverage | Execution status |
+| --- | --- | --- | --- |
+| SDK-01 | Existing acceptance scenarios survive SDK 52 → 58 | Original Node, RNTL, pgTAP, API and Maestro suites retained | Fast, local database/API and two fresh Android/Maestro CI runs pass |
+| SDK-02 | Category first tap remains handled with keyboard open | `keyboard-contract.test.cjs`, async RNTL case, existing Maestro flow | Node/component, Maestro and physical keyboard-open first tap pass |
+| SDK-03 | Windows prebuild relocates native package correctly | `native-tooling.test.cjs` exercises actual Expo config plugin; Windows CI job | Original-module replay fails; corrected regression passes locally and on Windows CI |
+| SDK-04 | Fresh native fonts/icons and lifecycle work on SDK 58 | Existing Maestro native font/error checks and physical ARM64 smoke | Maestro and physical Android 16 pass; native icons visually verified |

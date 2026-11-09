@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "scheme": "pantryflow",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pantryflow.app"
@@ -17,6 +16,8 @@
         "backgroundColor": "#F6F5F1"
       }
     },
-    "plugins": ["expo-router"]
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

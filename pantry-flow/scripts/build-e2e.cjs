@@ -6,11 +6,15 @@ const root = path.resolve(__dirname, '..');
 const work = path.join(root, '.verification/e2e-app');
 try {
 const publicEnv = JSON.parse(fs.readFileSync(path.join(root, '.verification/e2e-env.json'), 'utf8'));
-if (publicEnv.EXPO_PUBLIC_SUPABASE_URL !== 'http://10.0.2.2:54329') throw Error('Only the Android emulator local Supabase endpoint is allowed');
+if (!['http://10.0.2.2:54329', 'http://127.0.0.1:54329'].includes(publicEnv.EXPO_PUBLIC_SUPABASE_URL)) {
+  throw new Error('Only emulator host access or device ADB reverse to local Supabase is allowed');
+}
+const architectures = process.env.PANTRY_TEST_ARCHITECTURES || 'x86_64';
+if (!['x86_64', 'arm64-v8a', 'x86_64,arm64-v8a'].includes(architectures)) throw new Error('Unsupported test APK architectures');
 fs.mkdirSync(work, { recursive: true });
 for (const name of ['app', 'components', 'hooks', 'lib']) {
   const target = path.resolve(work, name);
-  if (!target.startsWith(path.resolve(root, '.verification') + path.sep)) throw Error('Unsafe generated-source target');
+  if (!target.startsWith(path.resolve(root, '.verification') + path.sep)) throw new Error('Unsafe generated-source target');
   fs.rmSync(target, { recursive: true, force: true });
   fs.cpSync(path.join(root, name), target, { recursive: true, force: true });
 }
@@ -28,7 +32,7 @@ execFileSync(process.execPath, [path.join(root, 'node_modules/expo/bin/cli'), 'p
 const linked = JSON.parse(execFileSync(process.execPath, [path.join(root, 'node_modules/expo-modules-autolinking/bin/expo-modules-autolinking'),
   'resolve', '--platform', 'android', '--json'], { cwd: work, env, encoding: 'utf8' }));
 if (!linked.modules?.some(module => module.packageName === 'expo-file-system')) {
-  throw Error('Native regression: expo-file-system is absent from Android autolinking; fonts/assets will fail');
+  throw new Error('Native regression: expo-file-system is absent from Android autolinking; fonts/assets will fail');
 }
 const manifest = path.join(work, 'android/app/src/main/AndroidManifest.xml');
 let xml = fs.readFileSync(manifest, 'utf8');
@@ -36,17 +40,35 @@ xml = xml.replace(/\sandroid:usesCleartextTraffic="[^"]*"/g, '').replace('<appli
 fs.writeFileSync(manifest, xml);
 if (process.platform === 'win32') {
   const buildFile = path.join(work, 'android/app/build.gradle');
-  const staging = path.join(root, '.verification/e2e-cxx').replaceAll('\\', '/');
+  // All CMake projects need short paths, including Reanimated/Worklets libraries.
+  // Keep generated caches inside the repository, outside the deeper test app.
+  const staging = path.resolve(root, '../.cxx').replaceAll('\\', '/');
   const content = fs.readFileSync(buildFile, 'utf8').replace('android {',
-    `android {\n    externalNativeBuild { cmake { buildStagingDirectory file('${staging}') } }\n    defaultConfig { externalNativeBuild { cmake { arguments '-DCMAKE_OBJECT_PATH_MAX=250' } } }`);
+    `android {\n    externalNativeBuild { cmake { buildStagingDirectory file('${staging}/app') } }\n    defaultConfig { externalNativeBuild { cmake { arguments '-DCMAKE_OBJECT_PATH_MAX=250' } } }`);
   fs.writeFileSync(buildFile, content);
+  fs.appendFileSync(path.join(work, 'android/build.gradle'), `
+// Windows test-build cache paths; no installed package sources are modified.
+subprojects { nativeProject ->
+    nativeProject.plugins.withId('com.android.library') {
+        nativeProject.android {
+            externalNativeBuild { cmake {
+                buildStagingDirectory file('${staging}/' + Integer.toHexString(nativeProject.path.hashCode()))
+            } }
+            defaultConfig { externalNativeBuild { cmake {
+                arguments '-DCMAKE_OBJECT_PATH_MAX=250'
+            } } }
+        }
+    }
+}
+`);
 }
 // Release JS bundle/lifecycle with a disposable debug-signed test package.
 const gradle = process.platform === 'win32' ? path.join(work, 'android/gradlew.bat') : './gradlew';
-execFileSync(gradle, ['assembleRelease', '-PreactNativeArchitectures=x86_64', '--max-workers=2', '--no-daemon'], {
+execFileSync(gradle, [':app:assembleRelease', `-PreactNativeArchitectures=${architectures}`, '--max-workers=2', '--no-daemon'], {
   cwd: path.join(work, 'android'), env, stdio: 'inherit', shell: process.platform === 'win32',
 });
-fs.copyFileSync(path.join(work, 'android/app/build/outputs/apk/release/app-release.apk'), path.join(root, '.verification/pantryflow-test.apk'));
+const apkName = architectures === 'x86_64' ? 'pantryflow-test.apk' : `pantryflow-test-${architectures.replace(',', '-')}.apk`;
+fs.copyFileSync(path.join(work, 'android/app/build/outputs/apk/release/app-release.apk'), path.join(root, '.verification', apkName));
 
 } catch (error) {
   try { execFileSync(process.execPath, [path.join(root, 'node_modules/tsx/dist/cli.mjs'), path.join(root, 'scripts/e2e-fixtures.ts'), 'cleanup'], { cwd: root, stdio: 'inherit' }); }

@@ -7,8 +7,11 @@ future work. No separate API server is used.
 
 ## Local setup
 
-Use Node.js 22.13 or newer, npm, and a native simulator or an Expo development
-client compatible with SDK 52. Current Expo Go releases may not support SDK 52.
+Use Node.js 22.13+ on the 22.x line (or a supported version listed in
+`package.json`), npm, and a native simulator or development client compatible
+with Expo SDK 58. SDK 58 requires a fresh native build. iOS requires 16.4+.
+The upgrade status and validation gates are recorded in
+[PF-SDK-001](../docs/sdk-upgrade/PF-SDK-001.md).
 
 From `pantry-flow/`:
 

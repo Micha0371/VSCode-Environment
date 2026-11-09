@@ -8,12 +8,16 @@ const stack = localStack();
 const command = process.argv[2];
 if (command === 'prepare') {
   try {
+    const target = process.env.PANTRY_TEST_TARGET ?? 'emulator';
+    assert.ok(['emulator', 'device'].includes(target), 'Expected emulator or device test target');
     await fixtures(stack);
     await fs.mkdir(path.join(appRoot, '.verification'), { recursive: true });
     await fs.writeFile(path.join(appRoot, '.verification/e2e-env.json'), JSON.stringify({
       // Only a local anon key is copied into the APK. Never the admin key.
       EXPO_PUBLIC_SUPABASE_ANON_KEY: stack.key,
-      EXPO_PUBLIC_SUPABASE_URL: 'http://10.0.2.2:54329',
+      // Device HTTP is loopback-only through ADB reverse; the proxy binds 127.0.0.1.
+      // These endpoints are confined to disposable fixtures, never the hosted app.
+      EXPO_PUBLIC_SUPABASE_URL: target === 'device' ? 'http://127.0.0.1:54329' : 'http://10.0.2.2:54329',
     }));
     console.log('Prepared two isolated households; registration account starts absent.');
   } catch (error) { await cleanup(stack.admin); throw error; }
