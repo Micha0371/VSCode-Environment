@@ -1,6 +1,6 @@
 # PF-SDK-001 — Expo SDK/tooling upgrade
 
-Status: implemented; Android/application/database validation passed. SonarCloud S5332 issue review remains open. [PR #2](https://github.com/Micha0371/VSCode-Environment/pull/2) is a draft and is not merged. Branch `pantryflow/pf-sdk-001` starts from protected main `5b10411`; the Slice 1.1 baseline remains intact.
+Status: implemented and validated for Android/application/database behavior; SonarCloud quality gate passed after the owner reviewed S5332 as False Positive. [PR #2](https://github.com/Micha0371/VSCode-Environment/pull/2) is ready for review and is not merged. Branch `pantryflow/pf-sdk-001` starts from protected main `5b10411`; the Slice 1.1 baseline remains intact.
 
 Expo is upgraded from SDK 52 to 58.0.23, React Native from 0.76.9 to 0.88.1, and React from 18.3.1 to 19.3.0. TypeScript 6.0.3, Jest 30.5.2 and RNTL 14.1.0 match the SDK. There are no new database migrations, business rules, features or screen redesigns. Supabase JS, PGlite, tsx and URL-polyfill resolved versions remain unchanged.
 
@@ -19,7 +19,7 @@ Expo is upgraded from SDK 52 to 58.0.23, React Native from 0.76.9 to 0.88.1, and
 | Physical Android 16 / ARM64 | Login, empty state, Milk creation, first keyboard-open Dairy tap, Fridge selection, Low status edit, cold restart with restored session/item, temporary-item deletion, tab navigation and logout passed |
 | Physical persistence / native assets | Ordinary-user API read found exactly Milk/Dairy/Fridge/Low, no temporary item, and an empty independent household. Visual inspection confirmed native icons; process logs had no fatal/missing-native-module errors |
 | Cleanup | Reserved local accounts and cascading fixtures removed; ADB reverse removed; loopback proxy and disposable Supabase stack stopped. Test app was signed out; baseline app and hosted data were untouched |
-| SonarCloud | Three constructor findings confirmed FIXED; the local-loopback HTTP finding S5332 remains OPEN pending authenticated review |
+| SonarCloud | Three constructor findings confirmed FIXED; S5332 is FALSE_POSITIVE after owner review; gate OK and GitHub check passing |
 
 The tested ARM64 APK SHA-256 is `c7dfa1c1b7bfb0a2f82eddea4ae75dddbf432dad9fd44c2b2d84acd31d8091d1`. Build artifacts, screenshots and raw logs are ignored local verification artifacts.
 
@@ -48,7 +48,7 @@ These findings are retained in the review, not suppressed in npm audit. This ass
 
 ## SonarCloud review evidence
 
-The sole open issue is `AaG9XLAvR-6YnTPhESk-`, S5332, in `scripts/e2e-fixtures.ts`. Both APK endpoints are strictly allowlisted and use disposable local accounts. The proxy binds only 127.0.0.1; the phone reaches its own loopback through authorized ADB reverse. The hosted app's HTTPS configuration is unchanged. A narrowly scoped false-positive review is appropriate; the S5332 rule and quality gate remain enabled. Browser control could not reliably inspect the Opera URL, and the dedicated browser host was unavailable, so authenticated triage has not been performed.
+The sole open issue is `AaG9XLAvR-6YnTPhESk-`, S5332, in `scripts/e2e-fixtures.ts`. Both APK endpoints are strictly allowlisted and use disposable local accounts. The proxy binds only 127.0.0.1; the phone reaches its own loopback through authorized ADB reverse. The hosted app's HTTPS configuration is unchanged. A narrowly scoped false-positive review is appropriate; the S5332 rule and quality gate remain enabled. Browser control could not reliably inspect the Opera URL, and the dedicated browser host was unavailable, so the owner completed the authenticated review on 2026-11-09. The public API confirms resolution FALSE-POSITIVE and all quality-gate conditions OK. No rule or gate configuration was disabled.
 
 ## Official references
 
