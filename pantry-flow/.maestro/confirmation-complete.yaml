@@ -3,6 +3,7 @@ name: Native PKCE confirmation, restart persistence and invalid-link recovery
 ---
 - openLink: ${MAESTRO_CONFIRMATION_URL}
 - assertVisible: Your pantry is empty
+- stopApp
 - launchApp
 - assertVisible: Your pantry is empty
 - tapOn: Settings

@@ -6,6 +6,8 @@ const out = path.join(root, '.verification/maestro');
 fs.mkdirSync(out, { recursive: true });
 const adb = process.env.ADB || 'adb';
 const maestro = process.env.MAESTRO || 'maestro';
+// Maestro does not use ADB's ANDROID_SERIAL to select its own driver target.
+const maestroDevice = process.env.ANDROID_SERIAL ? ['--device', process.env.ANDROID_SERIAL] : [];
 const run = (exe, args, options = {}) => {
   const result = spawnSync(exe, args, { cwd: root, stdio: 'inherit', ...options });
   if (result.error) throw result.error;
@@ -28,20 +30,25 @@ await new Promise((resolve, reject) => {
   fixture('prepare');
   run(adb, ['install', '-r', '.verification/pantryflow-test.apk']);
   run(adb, ['logcat', '-c']);
-  run(maestro, ['test', '--format', 'junit', '--output', '.verification/maestro/results.xml',
+  run(maestro, [...maestroDevice, 'test', '--format', 'junit', '--output', '.verification/maestro/results.xml',
     '--debug-output', '.verification/maestro/debug', '.maestro/slice-1-1.yaml'], {
       shell: process.platform === 'win32',
       env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true' },
     });
   fixture('verify');
-  const confirmationFlow = (file, callback) => run(maestro, ['test', '--format', 'junit',
-    '--output', `.verification/maestro/${file}.xml`, '--debug-output', `.verification/maestro/${file}`,
+  const confirmationFlow = (file, callback, report = file) => run(maestro, [...maestroDevice, 'test', '--format', 'junit',
+    '--output', `.verification/maestro/${report}.xml`, '--debug-output', `.verification/maestro/${report}`,
     `.maestro/${file}.yaml`], { shell: process.platform === 'win32',
     env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
       ...(callback ? { MAESTRO_CONFIRMATION_URL: callback } : {}) } });
   confirmationFlow('confirmation-register');
-  fixture('confirmation-expired');
+  fixture('confirmation-first');
   let state = JSON.parse(fs.readFileSync(path.join(root, '.verification/confirmation-state.json'), 'utf8'));
+  confirmationFlow('confirmation-complete', state.confirmed, 'confirmation-first-complete');
+  fixture('confirmation-reset');
+  confirmationFlow('confirmation-register');
+  fixture('confirmation-expired');
+  state = JSON.parse(fs.readFileSync(path.join(root, '.verification/confirmation-state.json'), 'utf8'));
   confirmationFlow('confirmation-resend', state.expired);
   fixture('confirmation-resent');
   state = JSON.parse(fs.readFileSync(path.join(root, '.verification/confirmation-state.json'), 'utf8'));
