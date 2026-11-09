@@ -79,7 +79,7 @@ challenges. This change is separate from the validated SDK baseline.
 
 ### Custom SMTP investigation (2026-11-09)
 
-Resend delivered mail from `no-reply@auth.householdkit.app`. A fresh signup
+Resend delivered mail from `noreply@auth.householdkit.app`. A fresh signup
 link, after click/open tracking were disabled, confirmed the controlled account
 but did not establish a hosted session (`last_sign_in_at` remained empty), and
 the Android app showed login. The earlier successful physical acceptance used
