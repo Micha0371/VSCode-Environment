@@ -54,6 +54,7 @@ have a 25-second timeout and 2 MB response limit. No automatic write retries occ
 python tools/jira/jira.py list --status "Backlog" --limit 20
 python tools/jira/jira.py get KAN-1
 python tools/jira/jira.py transitions KAN-1
+python tools/jira/jira.py metadata --issue-type 10008
 python tools/jira/jira.py create --input tools/jira/task.local.json
 python tools/jira/jira.py create --input tools/jira/task.local.json --apply
 python tools/jira/jira.py update KAN-1 --input tools/jira/change.local.json
@@ -91,12 +92,24 @@ Create input (`tools/jira/task.local.json`, ignored):
 ```
 
 Update input supports `summary`, plain-text `description`, and `labels`. Creation
-also requires `issueTypeId`; the project is injected by the tool and cannot be
-overridden. Descriptions are converted to Atlassian Document Format. The first
+also requires `issueTypeId` and optionally supports `parentKey` and `priorityId`.
+The project is injected by the tool and cannot be overridden. Descriptions are
+converted to Atlassian Document Format. The first
 version deliberately rejects arbitrary fields, raw URLs, attachments, deletion,
 comments, cross-project issue keys and project moves. Required Jira fields beyond
 this subset must be supported explicitly before using a project that needs them.
-Subtask creation is not supported by this version because parent is not exposed.
+`metadata` reads the configured project's creatable types. With `--issue-type ID`
+it returns the type's hierarchy level, field requirements and allowed priority IDs.
+It is read-only and paginates creation metadata. Hierarchical creation validates
+the canonical parent key/project and actual type levels: a standard issue can have
+an Epic parent; a Subtask must have a standard-issue parent. Cross-project parents,
+moved aliases, unsupported/missing hierarchy levels and unavailable priorities are
+rejected before a write. The server remains authoritative for races/permissions.
+Priority is sent only when that type's creation metadata exposes it; this project's
+Subtask screen does not expose priority. Parent/priority changes on existing issues
+remain unsupported. Selected get/list results expose parent key and priority for
+independent verification. These fields do not bypass exact `--apply` or the
+independent write guard.
 
 Before an existing-issue operation, the tool checks the server's canonical issue
 key and project identity, rejecting moved aliases. Results include selected issue
