@@ -88,6 +88,9 @@ test('resend UI blocks double submits, recovers from rate limits, and shows priv
     await act(async () => { request.resolve(); await retry; });
     assert.equal(calls, 2);
     assert.match(JSON.stringify(view.toJSON()), /auth_confirmation_sent/);
+    const announcement = view.root.findAllByType('Text').find(t => t.props.testID === 'confirmation-sent');
+    assert.equal(announcement.props.accessibilityLiveRegion, 'polite', 'Announce resend success through Android live regions');
+    assert.notEqual(announcement.props.accessibilityRole, 'status', 'Android rejects the web-only status accessibility role');
     assert.equal(button().props.disabled, true);
   } finally { if (view) act(() => view.unmount()); }
 });
