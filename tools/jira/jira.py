@@ -19,6 +19,26 @@ class Failure(Exception):
     """Only fixed, safe messages belong in this exception."""
 
 
+class WriteOutcomeUnknown(Failure):
+    def __init__(self):
+        super().__init__("Write outcome is unknown; inspect Jira before retrying. No automatic retry was made")
+
+
+class RateLimited(Failure):
+    def __init__(self, retry_after=None):
+        super().__init__("Jira rate limit reached (HTTP 429); retry later")
+        self.retry_after = retry_after
+
+
+class SafeParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **{**kwargs, "allow_abbrev": False})
+
+    def error(self, message):
+        # argparse's default errors echo user values before credentials/redaction exist.
+        raise Failure("Invalid command-line arguments; use --help")
+
+
 def credential(target):
     if target not in TARGETS.values():
         raise Failure("Credential target is not allowed")
@@ -100,7 +120,12 @@ class HTTP:
                 return response.status, json.loads(payload) if payload else {}
         except error.HTTPError as exc:
             status = exc.code
+            retry = exc.headers.get("Retry-After", "") if exc.headers else ""
             exc.close()
+            if status == 429:
+                # Only emit a bounded integer, never the raw header or error body.
+                seconds = int(retry) if re.fullmatch(r"[0-9]{1,5}", retry) else None
+                raise RateLimited(seconds) from None
             # Never echo a server error body, request headers or arbitrary exception.
             return status, {}
         except (error.URLError, TimeoutError, OSError, ValueError):
@@ -117,7 +142,7 @@ def require_success(status):
 
 
 class Jira:
-    def __init__(self, secrets, mode="auto", http=None):
+    def __init__(self, secrets, mode="auto", http=None, allow_writes=False):
         self.site = site_url(secrets["site"])
         email, token = secrets["email"], secrets["token"]
         if not re.fullmatch(r"[^\s:@]+@[^\s@]+\.[^\s@]+", email) or not token or any(c in token for c in "\r\n\0"):
@@ -128,6 +153,7 @@ class Jira:
         self.http = http or HTTP()
         self.mode = mode
         self.base = None
+        self.allow_writes = allow_writes is True
 
     def connect(self):
         # Tenant discovery is unauthenticated and only uses the validated site.
@@ -152,7 +178,19 @@ class Jira:
     def call(self, method, route, body=None):
         if not self.base or not route.startswith("/") or "://" in route:
             raise Failure("Invalid internal Jira route")
-        status, result = self.http.call(method, self.base + route, self.auth, body)
+        mutation = method != "GET" and not (method == "POST" and route == "/search/jql")
+        if mutation and not self.allow_writes:
+            raise Failure("Writes require explicit --apply authorization")
+        try:
+            status, result = self.http.call(method, self.base + route, self.auth, body)
+        except RateLimited:
+            raise
+        except Exception:
+            if mutation:
+                raise WriteOutcomeUnknown() from None
+            raise
+        if mutation and status >= 500:
+            raise WriteOutcomeUnknown()
         require_success(status)
         return result
 
@@ -265,7 +303,10 @@ def execute(args, jira, settings):
         if not args.apply:
             return {"preview": True, "operation": "create", "fields": fields}
         result = jira.call("POST", "/issue", {"fields": fields})
-        key = issue_key(result.get("key", ""), project)
+        try:
+            key = issue_key(result.get("key", ""), project)
+        except (Failure, AttributeError, TypeError):
+            raise WriteOutcomeUnknown() from None
         return {"created": key, "url": jira.site + "/browse/" + key}
     key = issue_key(args.key, project)
     route = "/issue/" + key
@@ -297,7 +338,7 @@ def execute(args, jira, settings):
 
 
 def parser():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = SafeParser(description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
     sub.add_parser("check")
     cfg = sub.add_parser("configure")
@@ -332,10 +373,15 @@ def main():
             print(json.dumps({"configured": True, "project": args.project}))
             return 0
         settings = config()
-        jira = Jira({name: credential(target) for name, target in TARGETS.items()}, settings.get("auth_mode", "auto"))
+        jira = Jira({name: credential(target) for name, target in TARGETS.items()}, settings.get("auth_mode", "auto"),
+                    allow_writes=getattr(args, "apply", False) is True)
         jira.connect()
         print(jira.safe(execute(args, jira, settings)))
         return 0
+    except RateLimited as exc:
+        result = {"error": str(exc), "code": "rate_limited", "retryAfterSeconds": exc.retry_after}
+    except WriteOutcomeUnknown as exc:
+        result = {"error": str(exc), "code": "write_outcome_unknown"}
     except Failure as exc:
         result = {"error": str(exc)}
     except Exception:
