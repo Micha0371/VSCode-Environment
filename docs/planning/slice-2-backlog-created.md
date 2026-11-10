@@ -1,5 +1,9 @@
 # Slice 2 Jira backlog — created and verified
 
+> Historical record of the 2026-11-09 Jira import. KAN-6 and KAN-8 were refreshed
+> on 2026-11-10 and prerequisites KAN-28/KAN-29 were added; see the
+> [refreshed implementation plan](slice-2-implementation-plan.md).
+
 [KAN-6](https://michaelwuerthner.atlassian.net/browse/KAN-6) — **[Slice 2] Shopping List MVP**
 
 Created 21 issues: one Epic, five Tasks and fifteen Subtasks. All issue keys are unique; every issue was read back after creation and again during final read-only verification. No existing matching shopping issues were found or reused. No unrelated issues were changed.

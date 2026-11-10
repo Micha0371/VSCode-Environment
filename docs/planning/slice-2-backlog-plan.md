@@ -1,5 +1,9 @@
 # Slice 2 backlog execution plan
 
+> Historical record of the 2026-11-09 backlog import. Its repository reference,
+> release-gate wording and open decisions are superseded by the
+> [refreshed implementation plan](slice-2-implementation-plan.md).
+
 Repository reference: validated main 2e2535057efd7b71af56be120bbff4aff73bf8f9 (SDK 58, migrations 00001–00003, merged Jira hardening #5). Pending email-confirmation PR #3 is a separate release gate, not an existing main feature. The source brief authorizes backlog creation only; no Slice 2 implementation or migration execution is included.
 
 ## Architecture reuse
