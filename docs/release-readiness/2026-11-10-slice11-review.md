@@ -8,7 +8,7 @@ remains a separate NO-GO decision.
 | Finding | Disposition / evidence |
 | --- | --- |
 | F1 — hidden red Sonar main gate | Sixteen security findings reviewed in [the triage plan](../security/2026-11-10-sonar-triage.md). Owner triage of the three new-code issues restored main's gate to OK, independently verified. The genuine SonarCloud app is now required alongside fast/database, with strict up-to-date protection retained. Official action SHAs and HTTPS-only redirects fix three older findings in code; owner disposition of the other ten older issues remains pending. No suppression or new-code-baseline reset is used. |
-| F2 — weekly Android run cancelled by pushes | Workflow cancellation now applies only to superseded PR runs. Scheduled/manual/main active runs are preserved. Startup output is separately captured/uploaded with pipe failure propagation, including when tests never start. Fresh CI validation is pending. |
+| F2 — weekly Android run cancelled by pushes | Workflow cancellation now applies only to superseded PR runs. Scheduled/manual/main active runs are preserved. Startup output is captured with pipe failure propagation; only a separately redacted file is uploaded, including when tests never start. Fresh CI validation is pending. |
 | F3 — deployed schema unknown | Completed read-only hosted/catalog comparison below. No unexplained application-schema difference. Migration history is absent and tracked as PF-DB-001 before KAN-8 reaches hosted Supabase; no remote schema/history mutation was performed. |
 | F4 — confirmed fixture setup undocumented | Added [hosted verification procedure](../testing/hosted-verification.md): two confirmed disposable accounts, separate households, public-key-only assertions, exact cleanup/account cleanup limits and no global confirmation relaxation. Runner refusal now links to that procedure. A regression verifies confirmation-enabled settings cannot trigger synthetic signup. |
 | F5 — ownerless iOS/premium debt | PF-IOS-001 and PF-PREMIUM-001 now have owner Micha0371, explicit deadlines and acceptance in [production follow-ups](../testing/production-follow-ups.md). This records the work; no iOS validation or entitlement correction is falsely claimed. |
@@ -51,6 +51,14 @@ The two intentionally retained reference branches account for the remaining
 merged branches mentioned by the review.
 
 ## Baseline and launch decision
+
+Local validation passed: typecheck, 52 Node checks, the Jest/RNTL case, local-target
+safety, all 21 pgTAP assertions and ordinary-user HTTP/email integration cases.
+Workflow YAML/action pins and actual Bash pipeline failure propagation were
+checked. The redaction regression preserves the observed port-collision error
+while removing credential-related startup lines/tokens. No production runtime
+or database behavior is changed. Exact-commit hosted CI/Android results remain
+separate from these local results.
 
 Use the distinct tag name `pantryflow/slice-1.1-baseline` when the reviewed fix
 is integrated and protected main, full regression and Sonar main gates pass.

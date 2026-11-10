@@ -60,6 +60,9 @@ jobs:
           set -o pipefail
           npm run db:start 2>&1 | tee db-start.log
         id: stack
+      - name: Redact startup diagnostics
+        if: always() && (steps.stack.outcome == 'success' || steps.stack.outcome == 'failure')
+        run: node scripts/redact-startup-log.cjs
       - run: npm run test:local 2>&1 | tee database-tests.log
       - run: npm run e2e:cleanup
         if: always() && steps.stack.outcome == 'success'
@@ -71,7 +74,7 @@ jobs:
           name: database-test-diagnostics
           path: |
             pantry-flow/database-tests.log
-            pantry-flow/db-start.log
+            pantry-flow/db-start.sanitized.log
   android:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[full-e2e]'))
     runs-on: ubuntu-latest
@@ -97,6 +100,9 @@ jobs:
           set -o pipefail
           npm run db:start 2>&1 | tee db-start.log
         id: stack
+      - name: Redact startup diagnostics
+        if: always() && (steps.stack.outcome == 'success' || steps.stack.outcome == 'failure')
+        run: node scripts/redact-startup-log.cjs
       - run: npm run db:reset
       - run: npm run e2e:prepare
       - run: npm run e2e:build
@@ -128,6 +134,6 @@ jobs:
           name: android-e2e-diagnostics
           path: |
             pantry-flow/.verification/maestro
-            pantry-flow/db-start.log
+            pantry-flow/db-start.sanitized.log
           include-hidden-files: true
           retention-days: 7

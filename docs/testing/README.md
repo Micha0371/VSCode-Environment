@@ -72,7 +72,9 @@ Diagnostics: ignored `.verification/maestro/results.xml`, `debug/`, screenshots 
 
 Only superseded PR runs are automatically cancelled. New pushes to `main` do not
 cancel an active scheduled/manual full run. Startup output is captured separately
-in `db-start.log` and uploaded even if the tests never start; Bash pipe failure
+in `db-start.log`; only its redacted `db-start.sanitized.log` is uploaded, even if
+the tests never start. A redaction failure cannot upload the raw startup file.
+Bash pipe failure
 propagation keeps a failed Supabase startup red. Artifact access still follows
 GitHub's authentication and repository permissions.
 
