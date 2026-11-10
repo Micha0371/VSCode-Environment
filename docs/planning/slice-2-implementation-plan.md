@@ -19,7 +19,7 @@ other backlog descriptions were left unchanged and are read together with this f
 | PRD §10 / Flow 5: checking off removes the item | Backlog requires complete/reopen | Completion is retained and reopenable (D2) |
 | PRD schema sketch: single-column `pantry_item_id ... ON DELETE SET NULL`, no `TO authenticated`, no column grants | A single-column foreign key cannot prevent cross-household links; 00002 conventions use `TO authenticated` policies, column grants and `ON DELETE SET NULL` creators | Composite foreign key and current conventions (D4) |
 | KAN-8 has no database prerequisites | PF-DB-001: hosted PostgreSQL 17.6 vs local/CI major 15; hosted migration ledger absent | New prerequisites KAN-28 and KAN-29 |
-| KAN-19: "explicit action or confirmed low/out prompt" | Status changes only on save in `app/edit-item/[id].tsx` | Open decision D3 |
+| KAN-19: "explicit action or confirmed low/out prompt" | Status changes only on save in `app/edit-item/[id].tsx` | Confirmed prompt after save (D3) |
 | KAN-27 under the Slice 2 epic could appear blocking | Its description and `non-blocking` label already state it does not block Slice 2 | No change; low-priority maintenance |
 
 ## Owner decisions
@@ -28,7 +28,7 @@ other backlog descriptions were left unchanged and are read together with this f
 | --- | --- |
 | D1 Duplicates | Names are unique among **open** items only, enforced by a partial unique index reusing `pantry_trim_item_name` and the pantry case rules. Manual and pantry-linked adds share one name space. Adding or reopening when an open duplicate exists returns a translated duplicate error; nothing is silently merged or renamed. Pantry strict uniqueness is unchanged. |
 | D2 Completion | A server-set completion timestamp; reopen is allowed; completed items remain until deleted individually. No bulk clear-completed. |
-| D3 Pantry entry point | **Open.** Explicit "add to shopping list" action versus a confirmed prompt after saving a pantry item as low/out. Blocks only KAN-19 (Pantry-to-Shopping-List Integration). |
+| D3 Pantry entry point | Confirmed prompt (PRD Flow 3). After a successful save in `app/edit-item/[id].tsx` that changes the status to low or out, the app asks "Add to shopping list?". Yes calls the same shopping add operation as a manual add, linked to that pantry item; No or dismiss does nothing. The pantry save is already persisted and is never rolled back by the prompt outcome; an open duplicate (D1) shows the translated duplicate message. No prompt when the status is unchanged or in stock; new pantry items start in stock, so adding one never prompts. No separate "add to shopping list" button in Slice 2. |
 | D4 Pantry deletion | The optional link is set to null and the shopping item keeps its own name. Same-household linking uses a composite foreign key `(household_id, pantry_item_id)` referencing a new `UNIQUE (household_id, id)` on `pantry_items`, with `ON DELETE SET NULL (pantry_item_id)` (PostgreSQL 15+). |
 | D5 Localization | Pantry category/status filters, German content and the language switcher move to a separate localization slice, possibly with more European languages. Slice 2 strings are English-only. |
 | D6 Hosted environment | The hosted project is non-production. PF-DATA-001 does not gate applying the Slice 2 migration there; it remains a production gate. |
@@ -47,7 +47,7 @@ must pass the required fast, database and SonarCloud checks.
 | 2b | Shopping data module and provider | KAN-12, KAN-13, KAN-14 | 2a | Unit and local integration tests |
 | 3a | Shopping tab between Pantry and Settings; loading/empty/error/retry states | KAN-16, KAN-18 | 2b | Screen tests |
 | 3b | Add, edit, complete, reopen and remove interactions | KAN-17 | 3a | Screen tests and `[full-e2e]` Android run |
-| 4 | Pantry-to-shopping entry point and duplicate handling | KAN-20, KAN-21, KAN-22 | 3b, D3 | Tests prove shopping never changes pantry state |
+| 4 | Low/out prompt after pantry save and duplicate handling | KAN-20, KAN-21, KAN-22 | 3b | Tests prove the prompt fires only on a change to low/out and shopping never changes pantry state |
 | 5 | Maestro shopping journey, then physical-device evidence | KAN-25, KAN-26 | 4 | Fresh test APK, direct database read-back |
 | H | Adopt hosted migration history, then apply `00004` to hosted through the tracked path | [KAN-29](https://michaelwuerthner.atlassian.net/browse/KAN-29) (PF-DB-001b: Adopt hosted migration-history baseline) | 0, 1 | Drift-free catalog comparison before each hosted step; owner runs or authorizes |
 
