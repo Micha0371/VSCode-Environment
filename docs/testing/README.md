@@ -4,7 +4,8 @@
 
 `main` is the integration branch. The historical branch
 `pantryflow/slice-1.1-validated` remains at `e6dbcf8`. Pull requests into `main`
-require the GitHub Actions `fast` and `database` checks against an up-to-date
+require the GitHub Actions `fast` and `database` checks plus the genuine
+`SonarCloud Code Analysis` check against an up-to-date
 branch, with conversations resolved. Direct pushes, force pushes and branch
 deletion are blocked by branch protection, including for administrators.
 Android remains an on-demand/weekly gate rather than an unconditional PR job.
@@ -18,6 +19,10 @@ smoke test. Production follow-ups remain in `production-follow-ups.md`.
 Reference baseline: `e6dbcf8`. PF-TEST-001 was implemented on `pantryflow/pf-test-001`; use a new branch for subsequent tasks and never rewrite or retag the validated baseline. No application source, business rules, migrations or production configuration are changed for tests.
 
 Read [the existing inventory](existing-inventory.md), [behavior matrix](coverage-matrix.md), and [independent production tasks](production-follow-ups.md).
+
+Hosted checks with confirmed disposable accounts, exact cleanup and read-only
+catalog comparison are documented in [hosted verification](hosted-verification.md).
+Do not disable hosted email confirmation to run the legacy account-creation flag.
 
 ## Fast checks
 
@@ -65,9 +70,22 @@ Diagnostics: ignored `.verification/maestro/results.xml`, `debug/`, screenshots 
 
 `.github/workflows/pantryflow-tests.yml` runs fast and disposable-database jobs on PRs. Manual dispatch and weekly scheduled runs additionally build an Android test APK and run Maestro on an accelerated emulator. CI has read-only repository permissions and needs no Supabase/GitHub secrets. Android diagnostics are retained for seven days. With the workflow integrated on `main`, scheduled and manual dispatch runs are active. Manual dispatch can select a follow-up branch for full Android validation before its PR is merged.
 
+Only superseded PR runs are automatically cancelled. New pushes to `main` do not
+cancel an active scheduled/manual full run. Startup output is captured separately
+in `db-start.log` and uploaded even if the tests never start; Bash pipe failure
+propagation keeps a failed Supabase startup red. Artifact access still follows
+GitHub's authentication and repository permissions.
+
 A harness change is accepted only after fast, database and Android jobs pass for its exact commit. Do not label an unexecuted flow a passing regression. Baseline historical counts (32 local, 13 hosted, 22 device groups) remain historical evidence rather than current automation counts. SDK upgrade, actual email delivery and historical hosted-account cleanup stay separate tasks.
 
-## Current execution record
+## Historical execution record — PF-TEST-001, 2026-11-08
+
+The counts below describe that dated harness run, not today's suite. Subsequent
+SDK/email work added confirmation coverage and raised the Node count to 50.
+Full [run 42717033012](https://github.com/Micha0371/VSCode-Environment/actions/runs/42717033012)
+passed fast, database, Windows and Android at `76c944d`. Consult the dated release
+records and current CI for later changes; do not treat these historical counts
+as a current coverage assertion.
 
 - Fast: TypeScript and 35 Node checks passed; Jest/RNTL and local-target guard also passed.
 - Disposable Supabase: unchanged migrations reset successfully; all 21 pgTAP assertions and all six HTTP behavior groups passed, including independent concurrent writes and foreign profile/household/membership mutations. Reserved accounts cleaned automatically.
