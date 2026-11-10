@@ -10,7 +10,7 @@ permissions:
   contents: read
 concurrency:
   group: pantryflow-tests-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 defaults:
   run:
     working-directory: pantry-flow
@@ -20,8 +20,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
@@ -32,15 +32,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: pantry-flow/package-lock.json
       - run: npm ci
       - run: npm run test:fast 2>&1 | tee fast-tests.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: fast-test-diagnostics
@@ -49,54 +49,71 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: pantry-flow/package-lock.json
       - run: npm ci
-      - run: npm run db:start
+      - run: |
+          set -o pipefail
+          npm run db:start 2>&1 | tee db-start.log
         id: stack
+      - name: Redact startup diagnostics
+        if: always() && steps.stack.outcome == 'failure'
+        run: node scripts/redact-startup-log.cjs
       - run: npm run test:local 2>&1 | tee database-tests.log
       - run: npm run e2e:cleanup
         if: always() && steps.stack.outcome == 'success'
       - run: npx --no-install supabase stop --no-backup
         if: always() && steps.stack.outcome == 'success'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: database-test-diagnostics
-          path: pantry-flow/database-tests.log
+          path: |
+            pantry-flow/database-tests.log
+      - name: Upload failed startup diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && steps.stack.outcome == 'failure'
+        with:
+          name: database-startup-failure
+          path: pantry-flow/db-start.sanitized.log
   android:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[full-e2e]'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [fast, database]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: pantry-flow/package-lock.json
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
       - run: npm ci
-      - run: npm run db:start
+      - run: |
+          set -o pipefail
+          npm run db:start 2>&1 | tee db-start.log
         id: stack
+      - name: Redact startup diagnostics
+        if: always() && steps.stack.outcome == 'failure'
+        run: node scripts/redact-startup-log.cjs
       - run: npm run db:reset
       - run: npm run e2e:prepare
       - run: npm run e2e:build
       - name: Install pinned Maestro CLI
         run: |
-          curl --fail --location --retry 3 https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.12.0/maestro.zip -o /tmp/maestro.zip
+          curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --retry 3 https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.12.0/maestro.zip -o /tmp/maestro.zip
           unzip -q /tmp/maestro.zip -d /tmp/pantryflow-maestro
           echo /tmp/pantryflow-maestro/maestro/bin >> "$GITHUB_PATH"
       - name: Enable emulator acceleration
@@ -104,7 +121,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - uses: reactivecircus/android-emulator-runner@v2
+      - uses: reactivecircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808 # v2
         with:
           api-level: 35
           arch: x86_64
@@ -116,10 +133,18 @@ jobs:
         if: always() && steps.stack.outcome == 'success'
       - run: npx --no-install supabase stop --no-backup
         if: always() && steps.stack.outcome == 'success'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: android-e2e-diagnostics
-          path: pantry-flow/.verification/maestro
+          path: |
+            pantry-flow/.verification/maestro
           include-hidden-files: true
+          retention-days: 7
+      - name: Upload failed startup diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && steps.stack.outcome == 'failure'
+        with:
+          name: android-startup-failure
+          path: pantry-flow/db-start.sanitized.log
           retention-days: 7

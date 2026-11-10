@@ -79,7 +79,7 @@ async function run() {
   if (!process.argv.includes('--run')) return;
 
   if (process.argv.includes('--create-test-accounts')) {
-    assert.equal(settings.data.mailer_autoconfirm, true, 'Account creation requires email auto-confirm; no verification emails will be sent');
+    assert.equal(settings.data.mailer_autoconfirm, true, 'Confirmation is enabled: provision two confirmed disposable accounts as documented in docs/testing/hosted-verification.md; do not disable confirmation to use this flag');
     const credentialPath = path.join(appRoot, '.env.verification.local');
     const saved = readEnv(credentialPath);
     const runId = crypto.randomUUID().replaceAll('-', '');
