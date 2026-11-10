@@ -44,7 +44,16 @@ npm run db:start
 npm run test:local
 ```
 
-The dedicated `pantryflow-tests` stack uses ports 54320–54324. Reset applies unchanged migrations 00001–00003 to the LOCAL stack, runs 21 transactional pgTAP assertions, then ordinary-user HTTP integration tests. No hosted project is linked or read from .env. The status API URL must equal `http://127.0.0.1:54321` before any test client is constructed. A local admin key is used only to create/confirm/delete exact reserved fixtures; authorization assertions never use it.
+The dedicated `pantryflow-tests` stack uses PostgreSQL major 17 and ports 54320–54324. Reset applies unchanged migrations 00001–00003 to the LOCAL stack, runs 21 transactional pgTAP assertions, then ordinary-user HTTP integration tests. No hosted project is linked or read from .env. The status API URL must equal `http://127.0.0.1:54321` before any test client is constructed. A local admin key is used only to create/confirm/delete exact reserved fixtures; authorization assertions never use it.
+
+For an existing major-15 test stack, stop it from `pantry-flow` with
+`npx --no-install supabase stop --no-backup` before `npm run db:start` and
+`npm run test:local`. This discards only this project's disposable fixtures and
+creates a fresh major-17 cluster; it is not an in-place upgrade of existing data.
+Never use this procedure for a hosted or persistent database. Verify the actual
+local major with `SHOW server_version` through the local database client. The
+major version is aligned with hosted PostgreSQL 17.6; the pinned CLI determines
+the local patch/image release, which can differ from the hosted patch.
 
 The tests create two independent household accounts and a third signup account. The exact `pf.test.*@example.com` addresses are reserved to this stack. Setup removes stale reserved fixtures; finally blocks clean them after failures. pgTAP rolls back all rows. Do not run database and Android suites simultaneously against one stack. A hard-killed process may need `npm run e2e:cleanup` on restart. `npm run db:reset` destroys only this dedicated local database, never the hosted development database.
 
