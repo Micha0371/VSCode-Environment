@@ -7,7 +7,9 @@ decisions in [the backlog plan](slice-2-backlog-plan.md) and
 historical record of the 2026-11-09 Jira import. The Jira epic
 [KAN-6](https://michaelwuerthner.atlassian.net/browse/KAN-6) (Shopping List MVP) and
 [KAN-8](https://michaelwuerthner.atlassian.net/browse/KAN-8) (Define shopping-list
-entities, relationships, and database migrations) were refreshed to match; the
+entities, relationships, and database migrations) were refreshed to match, and
+KAN-19 (Pantry-to-Shopping-List Integration) and KAN-20 (Implement adding an
+existing pantry item to the shopping list) were narrowed to the D3 prompt. The
 other backlog descriptions were left unchanged and are read together with this file.
 
 ## Superseded assumptions
