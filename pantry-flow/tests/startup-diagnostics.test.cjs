@@ -12,10 +12,14 @@ test('startup diagnostics preserve the actual port failure while removing test c
     'Secret | sb_secret_fixture',
     'opaque value eyJother.payload.signature',
     'Authorization: Bearer private-value',
+    'Database URL: postgresql://postgres:fixture-db-password@127.0.0.1:54322/postgres',
+    'password authentication failed for user postgres',
   ].join('\n'));
   assert.match(result, /address already in use/);
   assert.ok(result.includes(failure));
   assert.match(result, /Pull complete/);
-  assert.doesNotMatch(result, /private-fixture|sb_publishable_fixture|sb_secret_fixture|eyJfixture|eyJother|Bearer private-value/);
+  assert.match(result, /password authentication failed for user postgres/);
+  assert.match(result, /postgresql:\/\/\[credentials redacted\]@127.0.0.1:54322\/postgres/);
+  assert.doesNotMatch(result, /private-fixture|fixture-db-password|sb_publishable_fixture|sb_secret_fixture|eyJfixture|eyJother|Bearer private-value/);
   assert.equal(redactStartupLog(result), result);
 });

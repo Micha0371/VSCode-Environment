@@ -72,10 +72,10 @@ Diagnostics: ignored `.verification/maestro/results.xml`, `debug/`, screenshots 
 
 Only superseded PR runs are automatically cancelled. New pushes to `main` do not
 cancel an active scheduled/manual full run. Startup output is captured separately
-in `db-start.log`; only its redacted `db-start.sanitized.log` is uploaded, even if
-the tests never start. A redaction failure cannot upload the raw startup file.
-Bash pipe failure
-propagation keeps a failed Supabase startup red. Artifact access still follows
+in `db-start.log`; only failed startups upload the redacted
+`db-start.sanitized.log`, even if the tests never start. Successful startup logs
+are not uploaded. A redaction failure cannot upload the raw startup file.
+Bash pipe failure propagation keeps a failed Supabase startup red. Artifact access still follows
 GitHub's authentication and repository permissions.
 
 A harness change is accepted only after fast, database and Android jobs pass for its exact commit. Do not label an unexecuted flow a passing regression. Baseline historical counts (32 local, 13 hosted, 22 device groups) remain historical evidence rather than current automation counts. SDK upgrade, actual email delivery and historical hosted-account cleanup stay separate tasks.

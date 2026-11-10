@@ -61,7 +61,7 @@ jobs:
           npm run db:start 2>&1 | tee db-start.log
         id: stack
       - name: Redact startup diagnostics
-        if: always() && (steps.stack.outcome == 'success' || steps.stack.outcome == 'failure')
+        if: always() && steps.stack.outcome == 'failure'
         run: node scripts/redact-startup-log.cjs
       - run: npm run test:local 2>&1 | tee database-tests.log
       - run: npm run e2e:cleanup
@@ -74,7 +74,12 @@ jobs:
           name: database-test-diagnostics
           path: |
             pantry-flow/database-tests.log
-            pantry-flow/db-start.sanitized.log
+      - name: Upload failed startup diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && steps.stack.outcome == 'failure'
+        with:
+          name: database-startup-failure
+          path: pantry-flow/db-start.sanitized.log
   android:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[full-e2e]'))
     runs-on: ubuntu-latest
@@ -101,7 +106,7 @@ jobs:
           npm run db:start 2>&1 | tee db-start.log
         id: stack
       - name: Redact startup diagnostics
-        if: always() && (steps.stack.outcome == 'success' || steps.stack.outcome == 'failure')
+        if: always() && steps.stack.outcome == 'failure'
         run: node scripts/redact-startup-log.cjs
       - run: npm run db:reset
       - run: npm run e2e:prepare
@@ -134,6 +139,12 @@ jobs:
           name: android-e2e-diagnostics
           path: |
             pantry-flow/.verification/maestro
-            pantry-flow/db-start.sanitized.log
           include-hidden-files: true
+          retention-days: 7
+      - name: Upload failed startup diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && steps.stack.outcome == 'failure'
+        with:
+          name: android-startup-failure
+          path: pantry-flow/db-start.sanitized.log
           retention-days: 7
