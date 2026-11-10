@@ -79,7 +79,7 @@ challenges. This change is separate from the validated SDK baseline.
 
 ### Custom SMTP investigation (2026-11-09)
 
-Resend delivered mail from `no-reply@auth.householdkit.app`. A fresh signup
+Resend delivered mail from `noreply@auth.householdkit.app`. A fresh signup
 link, after click/open tracking were disabled, confirmed the controlled account
 but did not establish a hosted session (`last_sign_in_at` remained empty), and
 the Android app showed login. The earlier successful physical acceptance used
@@ -147,5 +147,5 @@ three manual-test accounts, three households and single pantry item. The
 successful callback was warm (`recovered: false`), so it verifies the real
 SMTP flow on the patched APK without proving that the fallback caused that
 success. The fallback is independently covered by the failing-before/passing-after
-delayed-bridge regression. Sender DNS authentication and code integration remain
-follow-ups, not claims established by the controlled recipient test.
+delayed-bridge regression. Subsequent integration and sender-authentication
+verification are recorded in the [2026-11-10 evidence](../release-readiness/2026-11-10-email-authentication.md), including public DNS and fresh Gmail SPF/DKIM/DMARC PASS. The initial recipient test alone did not establish those results.
