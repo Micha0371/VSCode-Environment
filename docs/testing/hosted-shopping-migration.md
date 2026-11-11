@@ -1,7 +1,12 @@
 # Applying 00004 to hosted — review and post-migration comparison
 
+Status: 00004 was **applied to hosted and verified on 2026-11-11**; see the
+[execution record](#execution-record--2026-11-11-applied-and-verified). The first
+attempt failed and rolled back ([attempt record](#attempt-record--2026-11-11-failed-fully-rolled-back)).
+Every later hosted migration needs its own fresh drift check and authorization.
+
 This is a future-operation checklist, not authorization to run a hosted write.
-The shopping migration has only been applied to disposable local databases.
+Before 2026-11-11, the shopping migration had only been applied to disposable local databases.
 Use a separately reviewed commit and explicit owner authorization for
 `oiqteedkfwmcertgxqga` (PantryFlow_Emergent). Do not replay 00001–00003 or repair
 history again: KAN-29 already recorded those versions.
@@ -120,3 +125,63 @@ with the same error.
 Ignored local evidence: `.verification/hosted-00004/` (local references, both
 rehearsals, and the attempt's before files, dry run, push logs and post-failure
 snapshots).
+
+## Execution record — 2026-11-11 (applied and verified)
+
+**Authorization.** After PR #23 merged, the owner gave a fresh "go ahead" for the
+corrected 00004.
+
+**Source.** Merged commit `d116176` (PR #23); its tree `4b7a8bed` is identical to
+the PR head's, whose required checks passed. Main CI on `d116176` (fast,
+database, windows-tooling, Sonar) passed before the write. The run used a
+detached worktree at that commit with no local changes and the test project
+unlinked. CLI 2.122.1. The isolated workdir held only the template config and
+exactly 00001–00004, written from the committed blobs. 00004 blob SHA-256:
+`90d8d6ef30a579eddc58c40882da67fd2f1b349c7b2687c5d62c77640ac0c0f6`.
+
+**References.** Fresh local PostgreSQL 17.11 stacks built from `d116176`:
+one through 00003 for the preflight, one through 00004 for the read-back.
+
+**Preflight.** A read-only rehearsal ran first (17:05:46 UTC). The final
+preflight completed at 17:07:43.531 UTC. Hosted 17.6 matched the local 00003
+reference under the documented exceptions only (preserved `rls_auto_enable()` /
+`ensure_rls`, the reviewed GraphQL tag binding, CRLF/LF). The ledger was exactly
+00001–00003. The dry-run plan was exactly `00004_shopping_items.sql`, with
+`seeds: []` and `roles: []`.
+
+**Command** (17:07:43.703–17:07:45.883 UTC), run once:
+
+```bat
+node node_modules/supabase/dist/supabase.js db push --linked --project-ref oiqteedkfwmcertgxqga --workdir <isolated workdir> --skip-vault --yes
+```
+
+Exit 0, with result `{"migrations":["00004_shopping_items.sql"],"seeds":[],"roles":[]}`.
+No token or password was passed or printed.
+
+**Read-back** (after-files saved before any assertion; verified 17:07:52 UTC):
+
+- The ledger is exactly 00001–00003 plus `00004 shopping_items`.
+- Hosted catalog and inventory equal the local 00004 reference under the same
+  documented exceptions. That covers all five tables, constraints, indexes,
+  policies, effective table/column privileges, function definitions, settings
+  and permissions, and row triggers.
+- `pantry_shopping_items`: `rls = true`, `force_rls = false`, identical to local.
+  `ensure_rls` caused no catalog difference. All four membership policies are
+  present, and the open-name unique index is valid.
+- The new table and `prepare_shopping_item()` are owned by `postgres`. The
+  function's EXECUTE is limited to `postgres` and `service_role`, as locally.
+- Before vs after, every change is an addition from 00004: the shopping table,
+  its 9 columns, 7 constraints (including the new
+  `pantry_items_household_id_id_key`), 4 indexes, 4 policies, trigger, function
+  and privileges. Nothing was removed or altered, and the event triggers are
+  unchanged.
+
+**Limits.**
+- No user rows were read; schema evidence alone does not prove row contents.
+- The app was not exercised against hosted.
+- The PostgREST schema reload was not observed directly.
+- The temporary CLI login role was not audited.
+
+Ignored local evidence: `.verification/hosted-00004-v2/` (local references,
+rehearsal, and the apply run's meta, preflight, before/after catalog, inventory
+and ledger, push logs and result).
