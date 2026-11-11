@@ -16,7 +16,7 @@
     "db:start": "supabase start -x realtime,storage-api,imgproxy,edge-runtime,studio,logflare,vector,supavisor",
     "db:reset": "supabase db reset --local",
     "test:db": "supabase test db",
-    "test:integration": "tsx --test --test-concurrency=1 tests/integration/behavior.integration.ts tests/integration/email-confirmation.integration.ts",
+    "test:integration": "tsx --test --test-concurrency=1 tests/integration/behavior.integration.ts tests/integration/email-confirmation.integration.ts tests/integration/shopping-data.integration.ts",
     "test:local": "npm run db:reset && npm run test:db && npm run test:integration",
     "e2e:prepare": "tsx scripts/e2e-fixtures.ts prepare",
     "e2e:verify": "tsx scripts/e2e-fixtures.ts verify",
