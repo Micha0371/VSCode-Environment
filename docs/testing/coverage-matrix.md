@@ -25,6 +25,7 @@ These cases cover persistence, not the future shopping screens/providers.
 | SHOP-DB-06 | Cross-household links fail; same-household relink preserves name/completion; deleting the former target preserves the new link, deleting the current target clears only the link | Composite-FK pgTAP and direct API add/update/relink/deletion | Optional links remain inside the same household |
 | SHOP-DB-07 | Members may edit another author's item; author deletion nulls attribution; household deletion cascades rows | API shared-membership fixture plus pgTAP deletion assertions | No invitations or multi-household UI introduced |
 | SHOP-DB-08 | 00004 preserves populated Slice 1.1 rows | PGlite upgrade regression in database.test.cjs | Supplemental actual local PG17 incremental-upgrade probe passed; not production populated-upgrade approval |
+| DB-ENV-02 | Every migration from 00004 on applies without `extensions` on search_path, as in the hosted CLI push session | migration-push-search-path.test.cjs (PGlite, fast job), with a negative control for an unqualified `uuid_generate_v4()` | Models only search_path resolution, not every hosted login-role privilege; added after the 2026-11-11 hosted 00004 push failed and rolled back |
 | DB-ENV-01 | Running PostgreSQL major must be 17 | Separate environment.test.sql, plan(1), in existing database CI job | The identical assertion was demonstrated failing on separate local 15.19; update deliberately with future major upgrades |
 
 Local validation on 2026-11-11: 53 Node checks, Jest/RNTL, typecheck and target

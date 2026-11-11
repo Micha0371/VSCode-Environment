@@ -12,6 +12,9 @@ new table's forced-RLS flag and effects of the preserved hosted event trigger.
 pantry link, `is_checked`, server-managed `completed_at`, nullable `created_by`,
 and server-managed creation/update timestamps. `created_by` follows the existing
 pantry convention rather than introducing a second creator-field vocabulary.
+Its `id` defaults to core `gen_random_uuid()`, not uuid-ossp's
+`uuid_generate_v4()`, because hosted `db push` runs without `extensions` on
+`search_path` (see the [attempt record](../testing/hosted-shopping-migration.md#attempt-record--2026-11-11-failed-fully-rolled-back)).
 
 - Open names are unique per household after `pantry_trim_item_name` and lower
   case conversion. Manual and pantry-linked items share one namespace. Display
