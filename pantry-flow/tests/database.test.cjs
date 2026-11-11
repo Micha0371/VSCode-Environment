@@ -50,6 +50,21 @@ test('migrations enforce authorization, validation, attribution and deletion beh
     await as(alice);
     const item = (await insert()).rows[0].id;
 
+    await t.test('shopping migration preserves existing pantry and household data', async () => {
+      await db.exec('RESET ROLE');
+      const snapshot = async () => {
+        const rows = {};
+        for (const table of ['profiles', 'pantry_households', 'pantry_household_members', 'pantry_items']) {
+          rows[table] = (await db.query(`SELECT * FROM public.${table} ORDER BY id`)).rows;
+        }
+        return rows;
+      };
+      const before = await snapshot();
+      await db.exec(migration('00004_shopping_items.sql'));
+      assert.deepEqual(await snapshot(), before);
+      await as(alice);
+    });
+
     await t.test('users may edit profile fields but cannot self-assign premium or change identity', async () => {
       await db.query("UPDATE public.profiles SET name='Alice', language='de' WHERE id=$1", [alice]);
       await assert.rejects(db.query('UPDATE public.profiles SET is_premium=true WHERE id=$1', [alice]), /permission denied/);

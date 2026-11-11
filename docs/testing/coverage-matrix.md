@@ -10,6 +10,35 @@ timestamp writes or requiring permanently non-null authors.
 “Automated” describes executable coverage, not an assertion that an unexecuted
 suite passed. Execution results are recorded separately in README.md.
 
+## Slice 2 database coverage — KAN-7 / KAN-30
+
+Contract: [approved D1/D2/D4 model](../planning/slice-2-shopping-database.md).
+These cases cover persistence, not the future shopping screens/providers.
+
+| ID | Observable outcome | Automated coverage | Limit |
+| --- | --- | --- | --- |
+| SHOP-DB-01 | Blank/null/overlong names fail; edge trim/case uniqueness applies only to open names; internal spaces remain significant | shopping.test.sql and shopping API group in behavior.integration.ts | Translated UI validation arrives with shopping data/UI work |
+| SHOP-DB-02 | Manual/linked adds share a namespace; duplicate rename/reopen fails without overwriting | pgTAP and ordinary-user API read-back | No merge/rename on conflict |
+| SHOP-DB-03 | Concurrent add, rename, reopen and add-versus-reopen produce one open winner | Separate authenticated clients through real PostgREST | PGlite is not used as concurrency evidence |
+| SHOP-DB-04 | Completion is server-timed, retained and reopenable; edits preserve completion time; shopping does not change pantry state | pgTAP and API full pantry-row comparison | No bulk clear or automatic pantry synchronization |
+| SHOP-DB-05 | Foreign/anonymous access, forged creators and client-owned timestamp/identity changes fail | Ordinary-role pgTAP and public-key API checks | Admin used only for fixture preparation/deletion |
+| SHOP-DB-06 | Cross-household pantry links fail; pantry deletion clears only link; household/name/completion survive | Composite-FK pgTAP and direct API add/update/deletion | Optional link may be retargeted only inside same household |
+| SHOP-DB-07 | Members may edit another author's item; author deletion nulls attribution; household deletion cascades rows | API shared-membership fixture plus pgTAP deletion assertions | No invitations or multi-household UI introduced |
+| SHOP-DB-08 | 00004 preserves populated Slice 1.1 rows | PGlite upgrade regression in database.test.cjs | Supplemental actual local PG17 incremental-upgrade probe passed; not production populated-upgrade approval |
+| DB-ENV-01 | Running PostgreSQL major must be 17 | Separate environment.test.sql, plan(1), in existing database CI job | The identical assertion was demonstrated failing on separate local 15.19; update deliberately with future major upgrades |
+
+Local validation on 2026-11-11: 53 Node checks, Jest/RNTL, typecheck and target
+safety passed; 21 original + 1 environment + 43 shopping pgTAP assertions passed;
+six original API groups, six shopping groups and two real-email cases passed.
+The actual PostgreSQL 17.11 incremental-upgrade probe started from 00001–00003
+with one existing pantry item and its profile/household/membership. Migration up
+applied only 00004; saved before/after snapshots of all four original tables
+matched exactly, then the fixture was removed. Ignored local evidence includes
+`kan7-upgrade-{before,after,result}.json` and `kan30-negative-result.json`.
+CI and Android results on the exact PR head remain separate required checks.
+
+## Slice 1.1 baseline coverage
+
 | ID | Approved behavior / observable outcome | Reused automated coverage | Additional coverage | Manual / deferred limit |
 | --- | --- | --- | --- | --- |
 | AUTH-01 | Registration creates profile, household and one membership | `auth.test.cjs`; PGlite signup triggers | Local integration fixtures and real signup; pgTAP; Maestro confirmation-required signup | Real mail delivery is PF-EMAIL-001 |

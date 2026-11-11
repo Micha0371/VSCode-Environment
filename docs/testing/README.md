@@ -44,7 +44,14 @@ npm run db:start
 npm run test:local
 ```
 
-The dedicated `pantryflow-tests` stack uses PostgreSQL major 17 and ports 54320–54324. Reset applies unchanged migrations 00001–00003 to the LOCAL stack, runs 21 transactional pgTAP assertions, then ordinary-user HTTP integration tests. No hosted project is linked or read from .env. The status API URL must equal `http://127.0.0.1:54321` before any test client is constructed. A local admin key is used only to create/confirm/delete exact reserved fixtures; authorization assertions never use it.
+The dedicated `pantryflow-tests` stack uses PostgreSQL major 17 and ports 54320–54324. Reset applies migrations 00001–00004 to the LOCAL stack (historical 00001–00003 are unchanged), then runs 21 Slice 1.1 pgTAP assertions, one running-major environment check and 43 shopping assertions, followed by ordinary-user HTTP/email integration tests. No hosted project is linked or read from .env. The status API URL must equal `http://127.0.0.1:54321` before any test client is constructed. A local admin key is used only for local fixture lifecycle/setup; authorization and shopping behavior assertions use ordinary clients.
+
+`environment.test.sql` checks the actual server, not only config.toml. KAN-30's
+negative run used a separate ignored config with major 15 and isolated ports:
+the same assertion rejected PostgreSQL 15.19, and that probe stack was removed.
+The main config remained at major 17 throughout. A future hosted-major upgrade
+must deliberately update the config and this one-assertion test together; the
+original Slice 1.1 file remains at plan(21).
 
 For an existing major-15 test stack, stop it from `pantry-flow` with
 `npx --no-install supabase stop --no-backup` before `npm run db:start` and
@@ -56,6 +63,12 @@ major version is aligned with hosted PostgreSQL 17.6; the pinned CLI determines
 the local patch/image release, which can differ from the hosted patch.
 
 The tests create two independent household accounts and a third signup account. The exact `pf.test.*@example.com` addresses are reserved to this stack. Setup removes stale reserved fixtures; finally blocks clean them after failures. pgTAP rolls back all rows. Do not run database and Android suites simultaneously against one stack. A hard-killed process may need `npm run e2e:cleanup` on restart. `npm run db:reset` destroys only this dedicated local database, never the hosted development database.
+
+Shopping HTTP tests reuse those fixtures and separate authenticated clients for
+concurrent add/rename/reopen conflicts. The final shared-member case uses the
+local admin client only to move fixture membership and delete the fixture
+author; member clients verify the resulting permissions and null attribution.
+See [the shopping database contract](../planning/slice-2-shopping-database.md).
 
 ## Android E2E
 
