@@ -1,0 +1,122 @@
+import React, { createContext, useContext, ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
+import {
+  assertUniqueOpenName, deleteShoppingItem, fetchAllShoppingItems, insertShoppingItem, renameShoppingItem,
+  setShoppingItemChecked, shoppingErrorKey, validateShoppingName, ShoppingItem, NewShoppingItemInput,
+} from '@/lib/shopping-data';
+import { useHouseholdList } from './household-list';
+
+export type { ShoppingItem, NewShoppingItemInput } from '@/lib/shopping-data';
+
+function useShoppingState() {
+  const { user, householdId, scope, isCurrent, loadedScope, generation, pendingItems, setItems, setLoading, setError,
+    visibleItems, view } = useHouseholdList<ShoppingItem>(fetchAllShoppingItems, 'err_load_shopping');
+  const { fetchItems } = view;
+
+  // Invalidate pending reads before each mutation, so an older snapshot cannot
+  // overwrite its result. All screens observe this same state instance.
+  // While the list is not loaded for this scope the discarded read is re-run
+  // after the write settles, and a load error stays visible, so a write before
+  // the first load never leaves a partial list or a permanent spinner.
+  const beginMutation = () => {
+    if (!householdId || !user || !isCurrent(scope)) throw new Error('No active household');
+    const unloaded = loadedScope !== scope;
+    generation.current++; setLoading(false);
+    if (!unloaded) setError(null);
+    return unloaded;
+  };
+  // Also re-read when a write failed because the record is missing, so other
+  // changes are picked up. The caller still gets the original error.
+  const rereadIfUnloaded = (unloaded: boolean) => {
+    if (unloaded && isCurrent(scope)) void fetchItems();
+  };
+  // A missing record is gone for this household, so drop it at once. A later
+  // write may discard the re-read; the row must not depend on it to disappear.
+  const dropIfMissing = (id: string, error: unknown) => {
+    if (shoppingErrorKey(error) !== 'err_shopping_missing') return false;
+    if (isCurrent(scope)) setItems(prev => prev.filter(it => it.id !== id));
+    return true;
+  };
+  const beginItemMutation = (id: string) => {
+    if (pendingItems.current.has(id)) throw new Error('Shopping item change is already pending');
+    const unloaded = beginMutation();
+    pendingItems.current.add(id);
+    return unloaded;
+  };
+  const applyResult = (update: (prev: ShoppingItem[]) => ShoppingItem[]) => {
+    if (isCurrent(scope)) { generation.current++; setLoading(false); setItems(update); }
+  };
+  // Runs one write for an existing item under the per-item lock and replaces
+  // the item with the parsed result the data module returns.
+  const changeItem = async (id: string, write: () => Promise<ShoppingItem>) => {
+    let reread = beginItemMutation(id);
+    try {
+      const item = await write();
+      applyResult(prev => prev.map(it => it.id === id ? item : it));
+      return item;
+    } catch (error) {
+      if (dropIfMissing(id, error)) reread = true;
+      throw error;
+    } finally {
+      pendingItems.current.delete(id);
+      rereadIfUnloaded(reread);
+    }
+  };
+
+  const addItem = async (input: NewShoppingItemInput) => {
+    const name = validateShoppingName(input.name);
+    assertUniqueOpenName(visibleItems, name);
+    const unloaded = beginMutation();
+    try {
+      const item = await insertShoppingItem(supabase, householdId!, user!.id, { ...input, name });
+      // A refresh may already hold this row; replace it instead of adding a copy.
+      applyResult(prev => [item, ...prev.filter(it => it.id !== item.id)]);
+      return item;
+    } finally {
+      rereadIfUnloaded(unloaded);
+    }
+  };
+  const renameItem = async (id: string, name: string) => {
+    const validated = validateShoppingName(name);
+    const existing = visibleItems.find(it => it.id === id);
+    if (existing && !existing.is_checked) assertUniqueOpenName(visibleItems, validated, id);
+    return changeItem(id, () => renameShoppingItem(supabase, householdId!, id, validated));
+  };
+  const completeItem = (id: string) =>
+    changeItem(id, () => setShoppingItemChecked(supabase, householdId!, id, true));
+  const reopenItem = async (id: string) => {
+    const existing = visibleItems.find(it => it.id === id);
+    if (existing) assertUniqueOpenName(visibleItems, existing.name, id);
+    return changeItem(id, () => setShoppingItemChecked(supabase, householdId!, id, false));
+  };
+  const deleteItem = async (id: string) => {
+    let reread = beginItemMutation(id);
+    try {
+      await deleteShoppingItem(supabase, householdId!, id);
+      applyResult(prev => prev.filter(it => it.id !== id));
+    } catch (error) {
+      if (dropIfMissing(id, error)) reread = true;
+      throw error;
+    } finally {
+      pendingItems.current.delete(id);
+      rereadIfUnloaded(reread);
+    }
+  };
+  return { ...view, addItem, renameItem, completeItem, reopenItem, deleteItem };
+}
+
+const ShoppingContext = createContext<ReturnType<typeof useShoppingState> | undefined>(undefined);
+export function ShoppingProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return <ScopedShoppingProvider key={user?.id ?? 'guest'}>{children}</ScopedShoppingProvider>;
+}
+function ScopedShoppingProvider({ children }: { children: ReactNode }) {
+  const value = useShoppingState();
+  return <ShoppingContext.Provider value={value}>{children}</ShoppingContext.Provider>;
+}
+export function useShoppingItems() {
+  const value = useContext(ShoppingContext);
+  if (!value) throw new Error('useShoppingItems must be used within ShoppingProvider');
+  return value;
+}

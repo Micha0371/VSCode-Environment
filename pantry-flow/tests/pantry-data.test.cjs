@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers.cjs');
 const constants = load('lib/constants.ts');
-const { validateItem, parseItem, fetchAllItems, PAGE_SIZE, assertUniqueItemName, itemSaveErrorKey } = load('lib/pantry-data.ts', { './constants': constants });
+const { validateItem, parseItem, fetchAllItems, PAGE_SIZE, assertUniqueItemName, itemSaveErrorKey } = load('lib/pantry-data.ts', { './constants': constants, './pagination': load('lib/pagination.ts') });
 const row = (id = '1') => ({ id, household_id: 'h', name: 'Milk', status: 'in_stock',
   category: 'dairy', location: 'fridge', created_by: 'u', created_at: '2026-01-01', updated_at: '2026-01-01' });
 
