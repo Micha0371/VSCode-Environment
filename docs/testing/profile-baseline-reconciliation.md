@@ -1,7 +1,10 @@
 # Proposed profile-trigger baseline reconciliation
 
-Status: prepared for review; **no hosted reconciliation has been executed**.
-The strict 00004 preflight stopped at merged commit `320d8ae` because the hosted
+Status: **executed and verified on 2026-11-11**; see the
+[execution record](#execution-record--2026-11-11). Hosted migration 00004 remains
+unapplied and needs its own authorization.
+
+Original preparation note: the strict 00004 preflight stopped at merged commit `320d8ae` because the hosted
 `handle_new_profile()` explicitly inserts the household name, whereas migrations
 00001/00002 use the matching column default. Current behavior is equivalent,
 but SQL definitions differ. The stop condition remains in force.
@@ -130,3 +133,67 @@ production populated-upgrade approval. Ignored evidence includes
 
 No hosted write is part of preparing this PR. Its read-only hook inspection and
 local validation do not establish that reconciliation has already happened.
+
+## Execution record — 2026-11-11
+
+**Authorization.** After reviewing PR #21 and choosing the repair over a
+documented exception, the owner wrote: "i will go with A, #21 is merged. please
+go ahead". This covered the reconciliation only, not applying 00004.
+
+**Source.** Merged commit `28030ac` (PR #21). The checkout ran from `f7a198f`,
+whose tree (`5f24e245`) is identical to the merged commit's tree, with no local
+changes and the disposable test project unlinked. Pinned Supabase CLI 2.122.1.
+`reconcile-profile.sql` SHA-256
+`ca6c61b53008db337b9a671f861e19140b4d8cdadec457daf5d74934e5f20be1`, equal to the
+committed blob.
+
+**Preflight** (completed 16:12:32.409 UTC / 17:12:32 CET). Local reference:
+freshly reset disposable stack, PostgreSQL 17.11, exactly 00001–00003. Hosted
+17.6. Before-catalog, before-inventory, hook inspection and ledger were saved
+first. Hosted ledger was exactly 00001–00003. Both reviewed DDL hooks matched
+their recorded hashes, owner and ACL. After applying only the documented
+exceptions (preserved `rls_auto_enable()` / `ensure_rls`, the reviewed GraphQL
+tag binding, CRLF/LF), the single application difference was
+`handle_new_profile()`: hosted equal to the exact recorded legacy body, local
+equal to the canonical body in the script. No other problem was found.
+
+**Command** (attempt recorded 16:12:32.593 UTC before running; finished
+16:12:34.591 UTC), run once from `pantry-flow`:
+
+```bat
+node node_modules/supabase/dist/supabase.js db query --linked --project-ref oiqteedkfwmcertgxqga --workdir .verification/hosted-profile-reconciliation --file "<pantry-flow>\ops\hosted-baseline\reconcile-profile.sql" --output-format json --yes
+```
+
+Exit code 0, empty result rows. The CLI reported "Initialising login role...",
+the documented login side effect; no token or password was passed or printed.
+
+**Read-back** (after-files saved before any assertion; verified 16:12:41 UTC):
+
+- Hosted ledger still exactly 00001 first_slice, 00002 review_hardening,
+  00003 strict_duplicate_prevention.
+- Hosted `handle_new_profile()` now equals the local migration-built
+  definition; the explicit `name` insert is gone. SECURITY DEFINER,
+  `search_path=""` and the anon/authenticated EXECUTE results are unchanged.
+- Hosted after-catalog and after-inventory equal the local 00003 reference,
+  apart from the same documented exceptions.
+- Before vs after: catalog and inventory, including all routine ACLs, are
+  identical except for that one function body. The hook inspection is unchanged.
+- The function's OID, owner and raw ACL were also checked by the script's own
+  in-transaction postcondition; the saved snapshots do not record the OID.
+
+**Strict 00004 preflight, rerun unchanged from scratch** (16:13:03 UTC,
+read-only): no differences, `canProceed: true`, no hosted write. The disposable
+local stack was then restored through 00004.
+
+**Limits.**
+- No user rows were read.
+- Effects of the GraphQL hook outside `public`, in the `extensions` or GraphQL
+  schemas, are not covered by the inventory. The OID guard keeps that hook on
+  its early-return path.
+- The expected PostgREST schema reload was not observed directly.
+- The temporary CLI login role was not audited.
+
+Ignored local evidence: `.verification/profile-reconciliation-2026-11-11T16-12-24-230Z/`
+(meta, local reference, before/after hosted catalog, inventory, hooks and
+ledger, attempt, execute logs, result) and
+`.verification/shopping-preflight-2026-11-11T16-12-58-252Z/`.
