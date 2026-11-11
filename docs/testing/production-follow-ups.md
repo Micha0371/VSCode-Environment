@@ -21,3 +21,8 @@ waive them.
 
 PF-TEST-001 completion requires a recorded clean full-suite run. Do not mark a
 new release/tag validated while Android or database runs remain pending.
+
+KAN-29's [baseline analysis and adoption procedure](hosted-baseline-adoption.md)
+is prepared for owner review. It identifies the hosted-only RLS auto-enable
+event trigger as an explicit configuration exception; hosted ledger adoption
+remains pending authorization and read-back, not completed by documentation.

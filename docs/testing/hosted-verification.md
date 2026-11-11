@@ -60,6 +60,11 @@ procedure above, not that flag.
 
 ## Read-only hosted catalog comparison
 
+For migration-ledger adoption, use the reviewed
+[KAN-29 baseline procedure](hosted-baseline-adoption.md), including its broader
+object inventory and separate non-test CLI workdir. A catalog match alone does
+not authorize a history repair.
+
 `scripts/catalog-snapshot.sql` selects only application catalog metadata inside
 `BEGIN READ ONLY`. It contains no user-row query or schema mutation. With an
 authorized local Supabase CLI login, compare a freshly migration-built local
@@ -68,8 +73,12 @@ stack to the explicitly selected hosted project:
 ```sh
 npm run db:reset
 npx --no-install supabase db query --local --file scripts/catalog-snapshot.sql --output-format json
-npx --no-install supabase db query --linked --project-ref oiqteedkfwmcertgxqga --file scripts/catalog-snapshot.sql --output-format json
 ```
+
+For the hosted query, prepare the isolated workdir and use the explicit-project
+commands in the baseline procedure. Do not run linked Management API lookups
+from the disposable project's workdir: the CLI can leave a hosted-project cache
+there even without an explicit `supabase link` command.
 
 The reset is **local only**. Review RLS, effective table/column permissions,
 constraints, indexes, trigger/function definitions, function settings and execution
