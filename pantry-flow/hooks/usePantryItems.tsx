@@ -2,13 +2,13 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { assertUniqueItemName, fetchAllItems, parseItem, validateItem, PantryItem, NewItemInput, UpdateItemInput } from '@/lib/pantry-data';
-import { useHousehold } from './useHousehold';
+import { useHouseholdScope } from './household-scope';
 
 export type { PantryItem, NewItemInput, UpdateItemInput } from '@/lib/pantry-data';
 
 function usePantryState() {
   const { user } = useAuth();
-  const { householdId, loading: householdLoading, error: householdError, refreshHousehold } = useHousehold();
+  const { householdId, loading: householdLoading, error: householdError, refreshHousehold } = useHouseholdScope();
   const [items, setItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadedScope, setLoadedScope] = useState<string | null>(null);
