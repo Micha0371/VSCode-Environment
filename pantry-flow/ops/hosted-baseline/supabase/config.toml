@@ -1,0 +1,6 @@
+# Non-test configuration for explicit Management API baseline-history operations.
+# Do not start/reset a local stack here. Always supply the reviewed project ref.
+project_id = "pantryflow-hosted-baseline"
+
+[db]
+major_version = 17
