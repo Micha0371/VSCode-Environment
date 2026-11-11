@@ -3,8 +3,9 @@ const assert = require('node:assert/strict');
 const React = require('react');
 const { create, act } = require('react-test-renderer');
 const { load, deferred } = require('./helpers.cjs');
+const { readContract } = require('./list-provider-contract.cjs');
 const constants = load('lib/constants.ts');
-const data = load('lib/pantry-data.ts', { './constants': constants });
+const data = load('lib/pantry-data.ts', { './constants': constants, './pagination': load('lib/pagination.ts') });
 const row = (id = '1', household_id = 'h') => ({ id, household_id, name: 'Milk', status: 'in_stock',
   category: 'dairy', location: 'fridge', created_by: 'u', created_at: '2026-01-01', updated_at: '2026-01-01' });
 
@@ -17,9 +18,10 @@ function fixture() {
     delete() { apiCalls.push('delete'); return this; }, eq() { return this; }, select() { return this; },
     single() { return Promise.resolve(mutationResult); },
     then(yes, no) { return Promise.resolve(mutationResult).then(yes, no); } }; } };
+  const boundary = { '@/lib/supabase': { supabase }, '@/lib/auth': { useAuth: () => ({ user }) },
+    './household-scope': { useHouseholdScope: () => ({ householdId: household, loading: false, error: null, refreshHousehold: async () => {} }) } };
   const { PantryProvider, usePantryItems } = load('hooks/usePantryItems.tsx', {
-    '@/lib/supabase': { supabase }, '@/lib/auth': { useAuth: () => ({ user }) },
-    './household-scope': { useHouseholdScope: () => ({ householdId: household, loading: false, error: null, refreshHousehold: async () => {} }) },
+    ...boundary, './household-list': load('hooks/household-list.ts', boundary),
     '@/lib/pantry-data': { ...data, fetchAllItems: () => { const d = deferred(); reads.push(d); return d.promise; } },
   });
   function One() { first = usePantryItems(); return null; }
@@ -54,36 +56,11 @@ test('both consumers observe add, edit and delete; old reads cannot undo a write
   f.dispose();
 });
 
-test('newest read wins and a user change clears state and discards old requests', async () => {
-  const f = fixture();
-  let newest;
-  act(() => { newest = f.first.fetchItems(); });
-  await act(async () => { f.reads[1].resolve([row('new')]); await newest; });
-  await act(async () => f.reads[0].resolve([row('old')]));
-  assert.equal(f.first.items[0].id, 'new');
-  let abandoned;
-  act(() => { abandoned = f.first.fetchItems(); });
-  f.change({ id: 'other' }, 'other-household');
-  assert.deepEqual(f.first.items, []);
-  await act(async () => { f.reads[2].resolve([row('private')]); await abandoned; });
-  assert.deepEqual(f.first.items, []);
-  await act(async () => f.reads[3].resolve([row('safe', 'other-household')]));
-  assert.equal(f.first.items[0].id, 'safe');
-  f.change(null, null);
-  assert.deepEqual(f.first.items, []);
-  f.dispose();
-});
+readContract({ fixture, row, loadError: 'err_load_items' });
 
-test('failed initial fetch remains an error and retry recovers', async () => {
+test('a delete that removes no row rejects', async () => {
   const f = fixture();
-  await act(async () => f.reads[0].reject(new Error('offline')));
-  assert.equal(f.first.error, 'err_load_items');
-  assert.equal(f.first.loading, false);
-  let retry;
-  act(() => { retry = f.first.retry(); });
-  await act(async () => { f.reads[1].resolve([row()]); await retry; });
-  assert.equal(f.first.error, null);
-  assert.equal(f.first.items.length, 1);
+  await act(async () => f.reads[0].resolve([row()]));
   f.mutation({ data: [], error: null });
   await act(async () => assert.rejects(f.first.deleteItem('missing'), /not deleted/));
   f.dispose();

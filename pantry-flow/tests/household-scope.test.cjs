@@ -84,10 +84,11 @@ test('useHouseholdScope outside HouseholdProvider throws', () => {
 test('PantryProvider consumes the shared scope', async () => {
   const { requests, calls, stubs, scope } = setup();
   const reads = [];
-  const data = load('lib/pantry-data.ts', { './constants': load('lib/constants.ts') });
+  const data = load('lib/pantry-data.ts', { './constants': load('lib/constants.ts'), './pagination': load('lib/pagination.ts') });
   const fetchAllItems = (_client, householdId) => { reads.push(householdId); return Promise.resolve([]); };
   const { PantryProvider, usePantryItems } = load('hooks/usePantryItems.tsx', {
     ...stubs, './household-scope': scope, '@/lib/pantry-data': { ...data, fetchAllItems },
+    './household-list': load('hooks/household-list.ts', { ...stubs, './household-scope': scope }),
   });
   let value;
   function Consumer() { value = usePantryItems(); return null; }

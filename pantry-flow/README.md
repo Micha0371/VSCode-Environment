@@ -131,7 +131,12 @@ Smoke test on a device against a disposable account:
 - `lib/auth.tsx`: session lifecycle and authentication outcomes.
 - `hooks/useHousehold.ts`: household lookup/retry, invoked by the shared provider.
 - `hooks/usePantryItems.tsx`: shared pantry state and CRUD; scoped by user identity.
+- `hooks/household-scope.tsx`: single shared household lookup for providers.
+- `hooks/household-list.ts`: shared read side (household-scoped list, stale-read guards) for PantryProvider and ShoppingProvider.
+- `lib/pagination.ts`: shared complete-read pagination.
 - `lib/pantry-data.ts`: validation, response parsing, and paged inventory reads.
+- `lib/shopping-data.ts`: shopping validation, parsing, error mapping and Supabase operations.
+- `hooks/useShoppingItems.tsx`: ShoppingProvider shared state; not mounted until the Shopping tab in step 3a.
 - `hooks/useItemMutation.ts`: mutual exclusion and abandoned-screen protection.
 - `supabase/migrations/`: authoritative database permissions and integrity rules.
 

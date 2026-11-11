@@ -13,7 +13,7 @@ suite passed. Execution results are recorded separately in README.md.
 ## Slice 2 database coverage — KAN-7 / KAN-30
 
 Contract: [approved D1/D2/D4 model](../planning/slice-2-shopping-database.md).
-These cases cover persistence, not the future shopping screens/providers.
+These cases cover persistence and the shopping data/provider layer (steps 1 and 2); no shopping screens exist yet.
 
 | ID | Observable outcome | Automated coverage | Limit |
 | --- | --- | --- | --- |
@@ -25,10 +25,14 @@ These cases cover persistence, not the future shopping screens/providers.
 | SHOP-DB-06 | Cross-household links fail; same-household relink preserves name/completion; deleting the former target preserves the new link, deleting the current target clears only the link | Composite-FK pgTAP and direct API add/update/relink/deletion | Optional links remain inside the same household |
 | SHOP-DB-07 | Members may edit another author's item; author deletion nulls attribution; household deletion cascades rows | API shared-membership fixture plus pgTAP deletion assertions | No invitations or multi-household UI introduced |
 | SHOP-DB-08 | 00004 preserves populated Slice 1.1 rows | PGlite upgrade regression in database.test.cjs | Supplemental actual local PG17 incremental-upgrade probe passed; not production populated-upgrade approval |
+| SHOP-STATE-01 | Shopping names are validated and database/transport errors map to contract keys (duplicate, permission, missing, invalid, generic) | shopping-data.test.cjs (unit) | No UI consumes the keys until step 3 |
+| SHOP-STATE-02 | Provider state follows household scope, guards stale and superseded writes, drops a missing row and re-reads, reconciles an add with a concurrent refresh by id, and surfaces mapped errors | shopping-state.test.cjs, list-provider-contract.cjs (unit) | Mounting, screens and the low/out prompt arrive in steps 3a, 3b and 4 |
+| SHOP-STATE-03 | Ordinary members persist and read back insert, linked insert, rename, check, reopen and delete; bypassed client checks surface as the contract keys for duplicate, foreign-household, foreign-link, 121-character, hidden-id rename and hidden-id delete; completed names repeat and reopen into an open duplicate fails | shopping-data.integration.ts against real local Auth/PostgREST with ordinary clients | Local stack only; relinking from the client is not exposed in step 2 |
+| SHOP-STATE-04 | Unmount, sign-out, household change and superseded reads do not apply stale results | Provider-level unit tests in shopping-state.test.cjs | Aborting an HTTP request mid-flight is not asserted, since it cannot show whether the server committed |
 | DB-ENV-02 | Every migration from 00004 on applies without `extensions` on search_path, as in the hosted CLI push session | migration-push-search-path.test.cjs (PGlite, fast job), with a negative control for an unqualified `uuid_generate_v4()` | Models only search_path resolution, not every hosted login-role privilege; added after the 2026-11-11 hosted 00004 push failed and rolled back |
 | DB-ENV-01 | Running PostgreSQL major must be 17 | Separate environment.test.sql, plan(1), in existing database CI job | The identical assertion was demonstrated failing on separate local 15.19; update deliberately with future major upgrades |
 
-Local validation on 2026-11-11: 53 Node checks, Jest/RNTL, typecheck and target
+KAN-7 / step-1 local validation on 2026-11-11: 53 Node checks, Jest/RNTL, typecheck and target
 safety passed; 21 original + 1 environment + 43 shopping pgTAP assertions passed;
 six original API groups, six shopping groups and two real-email cases passed.
 The actual PostgreSQL 17.11 incremental-upgrade probe started from 00001–00003
@@ -37,6 +41,7 @@ applied only 00004; saved before/after snapshots of all four original tables
 matched exactly, then the fixture was removed. Ignored local evidence includes
 `kan7-upgrade-{before,after,result}.json` and `kan30-negative-result.json`.
 CI and Android results on the exact PR head remain separate required checks.
+Step 2 local validation (shopping data module and provider, after the PR #26 review fixes): 100 Node tests and 1 Jest/RNTL test from `npm run test:fast`; 65 pgTAP assertions in 3 files and 21 integration tests from `npm run test:local`.
 
 Concurrency limit: the API tests dispatch requests together from separate
 authenticated clients, but do not force or prove overlapping execution inside

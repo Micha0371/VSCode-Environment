@@ -1,56 +1,14 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { assertUniqueItemName, fetchAllItems, parseItem, validateItem, PantryItem, NewItemInput, UpdateItemInput } from '@/lib/pantry-data';
-import { useHouseholdScope } from './household-scope';
+import { useHouseholdList } from './household-list';
 
 export type { PantryItem, NewItemInput, UpdateItemInput } from '@/lib/pantry-data';
 
 function usePantryState() {
-  const { user } = useAuth();
-  const { householdId, loading: householdLoading, error: householdError, refreshHousehold } = useHouseholdScope();
-  const [items, setItems] = useState<PantryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadedScope, setLoadedScope] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const generation = useRef(0);
-  const mounted = useRef(true);
-  const pendingItems = useRef(new Set<string>());
-  // The provider is keyed by user identity. This ref also protects a household
-  // change before effect cleanup and async operations after unmount.
-  const scope = `${user?.id ?? ''}:${householdId ?? ''}`;
-  const currentScope = useRef(scope);
-  currentScope.current = scope;
-  const isCurrent = (started: string) => mounted.current && currentScope.current === started;
-
-  useEffect(() => {
-    mounted.current = true;
-    return () => { mounted.current = false; generation.current++; };
-  }, []);
-
-  const fetchItems = useCallback(async () => {
-    const request = ++generation.current;
-    if (!householdId || !user) {
-      setItems([]); setError(null); setLoading(false); return;
-    }
-    setLoading(true); setError(null);
-    try {
-      const result = await fetchAllItems(supabase, householdId);
-      if (isCurrent(scope) && request === generation.current) {
-        setItems(result); setLoadedScope(scope);
-      }
-    } catch {
-      if (isCurrent(scope) && request === generation.current) setError('err_load_items');
-    } finally {
-      if (isCurrent(scope) && request === generation.current) setLoading(false);
-    }
-  }, [householdId, user?.id]);
-
-  useEffect(() => {
-    setItems([]);
-    void fetchItems();
-    return () => { generation.current++; };
-  }, [fetchItems]);
+  const { user, householdId, scope, isCurrent, generation, pendingItems, setItems, setLoading, setError, visibleItems, view } =
+    useHouseholdList<PantryItem>(fetchAllItems, 'err_load_items');
 
   // Invalidate pending reads before each mutation, so an older snapshot cannot
   // overwrite its result. All screens observe this same state instance.
@@ -102,15 +60,7 @@ function usePantryState() {
       pendingItems.current.delete(id);
     }
   };
-  const retry = householdError || !householdId ? refreshHousehold : fetchItems;
-  // Hide the previous household synchronously, before effects run.
-  const visibleItems = householdId ? items.filter(it => it.household_id === householdId) : [];
-  return {
-    householdId, items: visibleItems,
-    loading: householdLoading || loading || (!!householdId && loadedScope !== scope && !error),
-    error: householdError ?? error, fetchItems, retry, addItem, updateItem, deleteItem,
-    getItem: (id: string) => visibleItems.find(it => it.id === id) ?? null,
-  };
+  return { ...view, addItem, updateItem, deleteItem };
 }
 
 const PantryContext = createContext<ReturnType<typeof usePantryState> | undefined>(undefined);

@@ -123,7 +123,7 @@ test('protected routes do not mount children during restoration, failure or sign
 for (const [file, label] of [['app/add-item.tsx', 'item_add_button'], ['app/edit-item/[id].tsx', 'item_save_button']]) {
   test(`${file} translates a server unique-constraint rejection without navigating`, async () => {
     const constants = load('lib/constants.ts');
-    const data = load('lib/pantry-data.ts', { './constants': constants });
+    const data = load('lib/pantry-data.ts', { './constants': constants, './pagination': load('lib/pagination.ts') });
     const { en } = load('lib/i18n/en.ts');
     const mutation = load('hooks/useItemMutation.ts', { 'expo-router': {
       useFocusEffect: callback => React.useEffect(callback, [callback]),
