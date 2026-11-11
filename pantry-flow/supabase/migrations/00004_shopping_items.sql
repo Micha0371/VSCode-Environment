@@ -1,12 +1,14 @@
 -- Slice 2 D1/D2/D4: one open-name namespace per household; retained completion.
 -- Local development only until this exact migration receives hosted approval.
+-- Hosted `db push` runs without the extensions schema on search_path, so this
+-- file uses core gen_random_uuid() instead of uuid-ossp's uuid_generate_v4().
 BEGIN;
 
 ALTER TABLE public.pantry_items
   ADD CONSTRAINT pantry_items_household_id_id_key UNIQUE (household_id, id);
 
 CREATE TABLE public.pantry_shopping_items (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   household_id uuid NOT NULL REFERENCES public.pantry_households(id) ON DELETE CASCADE,
   pantry_item_id uuid,
   name text NOT NULL,
