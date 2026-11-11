@@ -26,6 +26,9 @@ history again: KAN-29 already recorded those versions.
    non-public event-trigger bindings are visible. A changed binding, ACL or
    unexplained object stops the operation. Non-public function implementation
    coverage remains limited as documented there.
+   The recorded legacy profile-body mismatch is tracked by the separate
+   [reconciliation proposal](profile-baseline-reconciliation.md); preparing or
+   merging that proposal does not waive this stop condition or execute a repair.
 4. Use the pinned CLI's tracked migration path. Its dry run must show only
    00004 pending; review every proposed action before the explicitly authorized
    application. No SQL Editor replay, seed/config/role changes or unrelated
