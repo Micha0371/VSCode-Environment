@@ -26,7 +26,7 @@ These cases cover persistence and the shopping data/provider layer (steps 1 and 
 | SHOP-DB-07 | Members may edit another author's item; author deletion nulls attribution; household deletion cascades rows | API shared-membership fixture plus pgTAP deletion assertions | No invitations or multi-household UI introduced |
 | SHOP-DB-08 | 00004 preserves populated Slice 1.1 rows | PGlite upgrade regression in database.test.cjs | Supplemental actual local PG17 incremental-upgrade probe passed; not production populated-upgrade approval |
 | SHOP-STATE-01 | Shopping names are validated and database/transport errors map to contract keys (duplicate, permission, missing, invalid, generic) | shopping-data.test.cjs (unit) | No UI consumes the keys until step 3 |
-| SHOP-STATE-02 | Provider state follows household scope, guards stale and superseded writes, and surfaces mapped errors | shopping-state.test.cjs (unit) | Mounting, screens and the low/out prompt arrive in steps 3a, 3b and 4 |
+| SHOP-STATE-02 | Provider state follows household scope, guards stale and superseded writes, re-reads after a missing-record write failure, and surfaces mapped errors | shopping-state.test.cjs (unit) | Mounting, screens and the low/out prompt arrive in steps 3a, 3b and 4 |
 | SHOP-STATE-03 | Ordinary members persist and read back insert, linked insert, rename, check, reopen and delete; bypassed client checks surface as the contract keys for duplicate, foreign-household, foreign-link, 121-character, hidden-id rename and hidden-id delete; completed names repeat and reopen into an open duplicate fails | shopping-data.integration.ts against real local Auth/PostgREST with ordinary clients | Local stack only; relinking from the client is not exposed in step 2 |
 | SHOP-STATE-04 | Unmount, sign-out, household change and superseded reads do not apply stale results | Provider-level unit tests in shopping-state.test.cjs | Aborting an HTTP request mid-flight is not asserted, since it cannot show whether the server committed |
 | DB-ENV-02 | Every migration from 00004 on applies without `extensions` on search_path, as in the hosted CLI push session | migration-push-search-path.test.cjs (PGlite, fast job), with a negative control for an unqualified `uuid_generate_v4()` | Models only search_path resolution, not every hosted login-role privilege; added after the 2026-11-11 hosted 00004 push failed and rolled back |
@@ -41,7 +41,7 @@ applied only 00004; saved before/after snapshots of all four original tables
 matched exactly, then the fixture was removed. Ignored local evidence includes
 `kan7-upgrade-{before,after,result}.json` and `kan30-negative-result.json`.
 CI and Android results on the exact PR head remain separate required checks.
-Step 2 local validation (shopping data module and provider, after the final review fixes): 91 Node tests and 1 Jest/RNTL test from `npm run test:fast`; 65 pgTAP assertions in 3 files and 21 integration tests from `npm run test:local`.
+Step 2 local validation (shopping data module and provider, after the final review fixes): 96 Node tests and 1 Jest/RNTL test from `npm run test:fast`; 65 pgTAP assertions in 3 files and 21 integration tests from `npm run test:local`.
 
 Concurrency limit: the API tests dispatch requests together from separate
 authenticated clients, but do not force or prove overlapping execution inside

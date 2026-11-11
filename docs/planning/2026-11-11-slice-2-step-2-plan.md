@@ -184,3 +184,7 @@
 - "Interrupted" operations (KAN-14) are covered at the provider level: unmount, sign-out, household change and superseded reads. Local-stack tests cover real success and rejection paths. Aborting an HTTP request mid-flight cannot prove whether it committed, so it gives no useful assertion.
 - Relinking `pantry_item_id` from the client is not exposed in step 2 (YAGNI); step 4's prompt only creates linked items.
 - `ShoppingProvider` mounting, screens and the low/out prompt belong to steps 3a, 3b and 4.
+- Pagination extraction required a one-line `'./pagination': load('lib/pagination.ts')` stub in four existing test files (pantry-data, household-scope, pantry-state, screens) despite "must pass unchanged". The stub is the real compiled module, not a mock, so pantry pagination coverage is unchanged; test bodies and assertions were not edited.
+- Owner decision 2026-11-11: missing-record write failures (`err_shopping_missing`) trigger a shopping re-read; this supersedes the plan's "leaves the item checked and present" assertion. Other errors leave state intact and issue no re-read.
+- Owner decision 2026-11-11: `err_shopping_invalid`'s name-specific copy is also shown for 23503/22P02/23502; it must be corrected before step 4's linked add is accepted.
+- The analogous PantryProvider write-before-first-load defect is latent (unreachable through the current UI, no cross-household exposure) and tracked as KAN-32 (PF-STATE-001: PantryProvider write before first load can leave the list loading).

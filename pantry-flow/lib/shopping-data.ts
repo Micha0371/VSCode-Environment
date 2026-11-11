@@ -77,7 +77,7 @@ export function shoppingErrorKey(error: unknown): ShoppingErrorKey {
   }
 }
 
-export function fetchAllShoppingItems(client: SupabaseClient, householdId: string) {
+export async function fetchAllShoppingItems(client: SupabaseClient, householdId: string) {
   return fetchAllPages(
     (from, to) => client.from(TABLE)
       .select('*', { count: 'exact' }).eq('household_id', householdId)
@@ -107,11 +107,11 @@ async function updateShoppingItem(
   return parseShoppingItem(data);
 }
 
-export function renameShoppingItem(client: SupabaseClient, householdId: string, id: string, name: string) {
+export async function renameShoppingItem(client: SupabaseClient, householdId: string, id: string, name: string) {
   return updateShoppingItem(client, householdId, id, { name: validateShoppingName(name) });
 }
 
-export function setShoppingItemChecked(
+export async function setShoppingItemChecked(
   client: SupabaseClient, householdId: string, id: string, checked: boolean,
 ) {
   return updateShoppingItem(client, householdId, id, { is_checked: checked });

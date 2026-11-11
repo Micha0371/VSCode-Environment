@@ -137,6 +137,34 @@ test('writes reject malformed rows and invalid names before any request', async 
   calls.length = 0;
   const ok = client(row('1'));
   await assert.rejects(insertShoppingItem(ok, 'h', 'u', { name: '   ' }), e => e.code === 'PF_INVALID_SHOPPING');
-  await assert.rejects(async () => renameShoppingItem(ok, 'h', '1', '   '), e => e.code === 'PF_INVALID_SHOPPING');
+  await assert.rejects(renameShoppingItem(ok, 'h', '1', '   '), e => e.code === 'PF_INVALID_SHOPPING');
   assert.equal(calls.length, 0);
+});
+
+test('every shopping operation reports failures as a rejected promise, never a synchronous throw', async () => {
+  const calls = [];
+  const client = { from(t) { calls.push(t); return {}; } };
+  const invalid = [
+    ['insert', () => insertShoppingItem(client, 'h', 'u', { name: '   ' })],
+    ['rename', () => renameShoppingItem(client, 'h', '1', '   ')],
+  ];
+  for (const [label, call] of invalid) {
+    let result;
+    try { result = call(); } catch (e) { assert.fail(`${label} threw synchronously: ${e.message}`); }
+    assert.ok(result instanceof Promise, `${label} returns a Promise`);
+    await assert.rejects(result, e => e.code === 'PF_INVALID_SHOPPING');
+  }
+  assert.equal(calls.length, 0);
+  const boom = { from() { throw new Error('boom'); } };
+  const throwing = [
+    ['fetch', () => fetchAllShoppingItems(boom, 'h')],
+    ['check', () => setShoppingItemChecked(boom, 'h', '1', true)],
+    ['delete', () => deleteShoppingItem(boom, 'h', '1')],
+  ];
+  for (const [label, call] of throwing) {
+    let result;
+    try { result = call(); } catch (e) { assert.fail(`${label} threw synchronously: ${e.message}`); }
+    assert.ok(result instanceof Promise, `${label} returns a Promise`);
+    await assert.rejects(result, /boom/);
+  }
 });

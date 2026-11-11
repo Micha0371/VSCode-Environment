@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import {
   assertUniqueOpenName, deleteShoppingItem, fetchAllShoppingItems, insertShoppingItem, renameShoppingItem,
-  setShoppingItemChecked, validateShoppingName, ShoppingItem, NewShoppingItemInput,
+  setShoppingItemChecked, shoppingErrorKey, validateShoppingName, ShoppingItem, NewShoppingItemInput,
 } from '@/lib/shopping-data';
 import { useHouseholdScope } from './household-scope';
 
@@ -67,9 +67,12 @@ function useShoppingState() {
     if (!unloaded) setError(null);
     return unloaded;
   };
+  // Also re-read when a write failed because the record is missing, so a row
+  // another member deleted disappears. The caller still gets the original error.
   const rereadIfUnloaded = (unloaded: boolean) => {
     if (unloaded && isCurrent(scope)) void fetchItems();
   };
+  const isMissing = (error: unknown) => shoppingErrorKey(error) === 'err_shopping_missing';
   const beginItemMutation = (id: string) => {
     if (pendingItems.current.has(id)) throw new Error('Shopping item change is already pending');
     const unloaded = beginMutation();
@@ -82,14 +85,17 @@ function useShoppingState() {
   // Runs one write for an existing item under the per-item lock and replaces
   // the item with the parsed result the data module returns.
   const changeItem = async (id: string, write: () => Promise<ShoppingItem>) => {
-    const unloaded = beginItemMutation(id);
+    let reread = beginItemMutation(id);
     try {
       const item = await write();
       applyResult(prev => prev.map(it => it.id === id ? item : it));
       return item;
+    } catch (error) {
+      if (isMissing(error)) reread = true;
+      throw error;
     } finally {
       pendingItems.current.delete(id);
-      rereadIfUnloaded(unloaded);
+      rereadIfUnloaded(reread);
     }
   };
 
@@ -119,13 +125,16 @@ function useShoppingState() {
     return changeItem(id, () => setShoppingItemChecked(supabase, householdId!, id, false));
   };
   const deleteItem = async (id: string) => {
-    const unloaded = beginItemMutation(id);
+    let reread = beginItemMutation(id);
     try {
       await deleteShoppingItem(supabase, householdId!, id);
       applyResult(prev => prev.filter(it => it.id !== id));
+    } catch (error) {
+      if (isMissing(error)) reread = true;
+      throw error;
     } finally {
       pendingItems.current.delete(id);
-      rereadIfUnloaded(unloaded);
+      rereadIfUnloaded(reread);
     }
   };
   const retry = householdError || !householdId ? refreshHousehold : fetchItems;

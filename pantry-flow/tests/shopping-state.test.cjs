@@ -168,13 +168,77 @@ test('failed or malformed writes leave state intact and allow retry', async () =
     await assert.rejects(f.first.addItem({ name: 'Eggs' }), /offline/);
   });
   assert.deepEqual(f.first.items, before);
-  f.impl.check = async () => { throw Object.assign(new Error('gone'), { code: 'PGRST116' }); };
-  await act(async () => { await assert.rejects(f.first.reopenItem('1'), e => e.code === 'PGRST116'); });
-  assert.equal(f.first.items.length, 1);
-  assert.equal(f.first.items[0].is_checked, true);
+  assert.equal(f.reads.length, 1);
   f.impl.check = async (_c, _h, _id, checked) => row('1', 'Milk', checked);
   await act(async () => { await f.first.reopenItem('1'); });
   assert.equal(f.first.items[0].is_checked, false);
+  await act(async () => { await f.first.completeItem('1'); });
+  f.impl.check = async () => { throw Object.assign(new Error('gone'), { code: 'PGRST116' }); };
+  await act(async () => { await assert.rejects(f.first.reopenItem('1'), e => e.code === 'PGRST116'); });
+  assert.equal(f.reads.length, 2);
+  await act(async () => f.reads[1].resolve([]));
+  assert.equal(f.first.items.length, 0);
+  assert.equal(f.first.loading, false);
+  f.dispose();
+});
+
+test('a missing-record failure re-reads so a row deleted elsewhere disappears', async () => {
+  const f = fixture();
+  await act(async () => f.reads[0].resolve([row('1', 'Milk'), row('2', 'Eggs')]));
+  f.impl.rename = async () => { throw Object.assign(new Error('gone'), { code: 'PGRST116' }); };
+  const original = Object.assign(new Error('gone'), { code: 'PF_SHOPPING_MISSING' });
+  f.impl.delete = async () => { throw original; };
+  let outcome;
+  await act(async () => { outcome = await Promise.allSettled([f.first.renameItem('1', 'Oat')]); });
+  assert.equal(outcome[0].status, 'rejected');
+  assert.equal(outcome[0].reason.code, 'PGRST116');
+  assert.equal(f.reads.length, 2);
+  await act(async () => f.reads[1].resolve([row('2', 'Eggs')]));
+  assert.deepEqual(f.first.items.map(i => i.id), ['2']);
+  assert.equal(f.first.loading, false);
+  assert.equal(f.first.error, null);
+  await act(async () => { await assert.rejects(f.second.deleteItem('2'), e => e === original); });
+  assert.equal(f.reads.length, 3);
+  await act(async () => f.reads[2].resolve([]));
+  assert.deepEqual(f.first.items, []);
+  assert.equal(f.first.loading, false);
+  assert.equal(f.first.error, null);
+  f.dispose();
+});
+
+test('a missing-record re-read loses to a newer read and to a household change', async () => {
+  const f = fixture();
+  await act(async () => f.reads[0].resolve([row('1', 'Milk')]));
+  f.impl.delete = async () => { throw Object.assign(new Error('gone'), { code: 'PF_SHOPPING_MISSING' }); };
+  await act(async () => { await assert.rejects(f.first.deleteItem('1'), e => e.code === 'PF_SHOPPING_MISSING'); });
+  assert.equal(f.reads.length, 2);
+  let newer;
+  act(() => { newer = f.first.fetchItems(); });
+  await act(async () => { f.reads[2].resolve([row('1', 'Milk'), row('3', 'Tea')]); await newer; });
+  await act(async () => f.reads[1].resolve([]));
+  assert.deepEqual(f.first.items.map(i => i.id).sort(), ['1', '3']);
+  await act(async () => { await assert.rejects(f.first.deleteItem('1'), e => e.code === 'PF_SHOPPING_MISSING'); });
+  assert.equal(f.reads.length, 4);
+  f.change({ id: 'u' }, 'h2');
+  await act(async () => f.reads[3].resolve([row('old', 'Milk', false, 'h')]));
+  assert.deepEqual(f.first.items, []);
+  await act(async () => f.reads[4].resolve([row('x', 'Tea', false, 'h2')]));
+  assert.deepEqual(f.first.items.map(i => i.id), ['x']);
+  f.dispose();
+});
+
+test('a transport failure on a write issues no re-read', async () => {
+  const f = fixture();
+  await act(async () => f.reads[0].resolve([row('1', 'Milk')]));
+  f.impl.rename = async () => { throw new Error('offline'); };
+  f.impl.delete = async () => { throw new Error('offline'); };
+  await act(async () => {
+    await assert.rejects(f.first.renameItem('1', 'Oat'), /offline/);
+    await assert.rejects(f.first.deleteItem('1'), /offline/);
+  });
+  assert.equal(f.reads.length, 1);
+  assert.deepEqual(f.first.items.map(i => i.id), ['1']);
+  assert.equal(f.first.loading, false);
   f.dispose();
 });
 
@@ -287,4 +351,20 @@ test('useShoppingItems outside ShoppingProvider throws', () => {
     assert.throws(() => act(() => { create(React.createElement(() => { f.useShoppingItems(); return null; })); }),
       /useShoppingItems must be used within ShoppingProvider/);
   } finally { console.error = original; }
+});
+
+test("a write that settles after a household change does not strand the new household's first read", async () => {
+  const f = fixture();
+  const pending = deferred();
+  f.impl.insert = () => pending.promise;
+  let adding;
+  act(() => { adding = f.first.addItem({ name: 'Eggs' }); });
+  f.change({ id: 'u' }, 'h2');
+  assert.equal(f.reads.length, 2);
+  await act(async () => { pending.resolve(row('late', 'Eggs', false, 'h')); await adding; });
+  await act(async () => f.reads[1].resolve([row('x', 'Tea', false, 'h2')]));
+  assert.deepEqual(f.first.items.map(i => i.id), ['x']);
+  assert.equal(f.first.loading, false);
+  assert.equal(f.first.error, null);
+  f.dispose();
 });
