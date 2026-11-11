@@ -11,7 +11,8 @@ SELECT jsonb_build_object(
     AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid='pg_class'::regclass AND d.objid=c.oid AND d.deptype='e')),
   'routines', (SELECT jsonb_agg(jsonb_build_object(
     'name',p.proname,'arguments',pg_get_function_identity_arguments(p.oid),
-    'owner',pg_get_userbyid(p.proowner),'definition',pg_get_functiondef(p.oid)
+    'owner',pg_get_userbyid(p.proowner),'proacl',to_jsonb(p.proacl),
+    'definition',pg_get_functiondef(p.oid)
   ) ORDER BY p.proname,pg_get_function_identity_arguments(p.oid)) FROM pg_proc p
     JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public'
     AND p.prokind IN ('f','p')
@@ -29,9 +30,11 @@ SELECT jsonb_build_object(
     AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid='pg_trigger'::regclass AND d.objid=t.oid AND d.deptype='e')),
   'event_triggers', (SELECT jsonb_agg(jsonb_build_object('name',e.evtname,
     'event',e.evtevent,'enabled',e.evtenabled,'tags',e.evttags,
-    'owner',pg_get_userbyid(e.evtowner),'function',p.proname)
+    'owner',pg_get_userbyid(e.evtowner),'function_schema',n.nspname,'function',p.proname)
     ORDER BY e.evtname) FROM pg_event_trigger e JOIN pg_proc p ON p.oid=e.evtfoid
-    JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public'),
+    JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE NOT EXISTS (SELECT 1 FROM pg_depend d
+      WHERE d.classid='pg_event_trigger'::regclass AND d.objid=e.oid AND d.deptype='e')),
   'uuid_extension', (SELECT jsonb_build_object('name',e.extname,'version',e.extversion,
     'schema',n.nspname) FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace
     WHERE e.extname='uuid-ossp')

@@ -59,6 +59,61 @@ The inventory is application-focused, not a complete audit of Supabase-managed
 schemas, roles or every database object class. Any newly observed difference,
 changed helper definition/attachment or unexpected ledger content stops adoption.
 
+## KAN-31 inventory coverage and reviewed platform differences
+
+The inventory now records raw `proacl` for every public non-extension routine
+and all non-extension-member event triggers, regardless of their function's
+schema. Each event entry includes `function_schema`; extension-owned functions
+do not cause their non-extension-member event triggers to be hidden. These
+fields supplement the narrower application catalog rather than replacing it.
+
+Compare ACLs as complete grantee/privilege/grantor entries (array ordering alone
+is insignificant). `X` means EXECUTE, an empty grantee means PUBLIC, and `*`
+denotes grant option. A null `proacl` means PostgreSQL's default ACL, not an empty
+grant set: resolve its default semantics before accepting any difference. Do
+not omit ACLs when comparing definitions or normalize away added grants.
+
+The 2026-11-11 KAN-31 comparison queried hosted once, read-only, against a fresh
+local 17.11 reference. All five application routines had identical local/hosted
+ACLs: `=X/postgres`, `postgres=X/postgres`, `anon=X/postgres`,
+`authenticated=X/postgres`, `service_role=X/postgres`. The hosted-only
+`rls_auto_enable()` had the same ACL entries. This records existing grants; it
+does not harden or widen them. The preserved helper and `ensure_rls` exception
+above still apply, with `function_schema = public` for the event trigger.
+
+The newly visible platform entries below are enabled `O`, owned by
+`supabase_admin`, and invoke functions in `extensions`. They are reviewed by
+their exact bindings, not ignored by owner or namespace. Their names and targets
+identify GraphQL, cron, networking and PostgREST integration hooks; they are not
+declared by the application migrations. Function implementation provenance was
+not established by this catalog comparison.
+
+| Event trigger | Function in extensions | Event | Local tags | Hosted tags |
+| --- | --- | --- | --- | --- |
+| issue_graphql_placeholder | set_graphql_placeholder | sql_drop | DROP EXTENSION | DROP EXTENSION |
+| issue_pg_cron_access | grant_pg_cron_access | ddl_command_end | CREATE EXTENSION | CREATE EXTENSION |
+| issue_pg_graphql_access | grant_pg_graphql_access | ddl_command_end | CREATE EXTENSION | CREATE FUNCTION |
+| issue_pg_net_access | grant_pg_net_access | ddl_command_end | CREATE EXTENSION | CREATE EXTENSION |
+| pgrst_ddl_watch | pgrst_ddl_watch | ddl_command_end | null (all tags) | null (all tags) |
+| pgrst_drop_watch | pgrst_drop_watch | sql_drop | null (all tags) | null (all tags) |
+
+`issue_pg_graphql_access` is an explicit platform-configuration difference:
+the watched DDL tag differs. No application object difference follows from
+this observation, and no hosted/platform object was changed to force equality.
+Preserve the reviewed binding on each environment. New or changed bindings,
+owners, enabled states or ACLs require fresh review; there is no blanket platform
+exception. These hooks do not replace explicit RLS in application migrations.
+
+Local validation created a temporary event trigger calling a function outside
+public and a temporary public function with an extra EXECUTE grant to a
+dedicated NOLOGIN role. Both appeared in the inventory; revoking the grant was
+visible too. The trigger, functions, schema and role were removed in cleanup,
+and the final inventory equaled the pre-probe snapshot. No fixtures, hosted
+writes, historical migration changes or application changes are part of KAN-31.
+Ignored evidence: `kan31-probe-inventory.json`, `kan31-local-inventory.json` and
+`kan31-hosted-inventory.json`. Retain both before and after snapshots for the
+next hosted operation, as required below.
+
 ## CLI login and connection side effects
 
 "Ledger-only" describes the application-level operation; it does not mean the
