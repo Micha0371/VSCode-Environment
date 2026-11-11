@@ -6,6 +6,8 @@ import {
   deleteShoppingItem, shoppingErrorKey,
 } from '../../lib/shopping-data';
 
+const byId = (a: string, b: string) => a.localeCompare(b);
+
 async function rejection(work: Promise<unknown>): Promise<unknown> {
   try { await work; } catch (error) { return error; }
   assert.fail('expected the operation to be rejected');
@@ -32,7 +34,7 @@ test('shopping data module against real local Auth/PostgREST', async t => {
       assert.equal(linked.pantry_item_id, pantry.data!.id);
 
       const all = await fetchAllShoppingItems(a.client, a.household);
-      assert.deepEqual(all.map(item => item.id).sort(), [manual.id, linked.id].sort());
+      assert.deepEqual(all.map(item => item.id).sort(byId), [manual.id, linked.id].sort(byId));
 
       const renamed = await renameShoppingItem(a.client, a.household, manual.id, 'Soy milk');
       assert.equal(renamed.name, 'Soy milk');

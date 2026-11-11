@@ -88,6 +88,7 @@ test('PantryProvider consumes the shared scope', async () => {
   const fetchAllItems = (_client, householdId) => { reads.push(householdId); return Promise.resolve([]); };
   const { PantryProvider, usePantryItems } = load('hooks/usePantryItems.tsx', {
     ...stubs, './household-scope': scope, '@/lib/pantry-data': { ...data, fetchAllItems },
+    './household-list': load('hooks/household-list.ts', { ...stubs, './household-scope': scope }),
   });
   let value;
   function Consumer() { value = usePantryItems(); return null; }

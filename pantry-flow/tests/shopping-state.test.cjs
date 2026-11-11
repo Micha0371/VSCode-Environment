@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const React = require('react');
 const { create, act } = require('react-test-renderer');
 const { load, deferred } = require('./helpers.cjs');
+const { readContract } = require('./list-provider-contract.cjs');
 const real = load('lib/shopping-data.ts', { './pagination': load('lib/pagination.ts') });
 const row = (id = '1', name = 'Milk', checked = false, household_id = 'h') => ({ id, household_id, pantry_item_id: null,
   name, is_checked: checked, completed_at: checked ? '2026-01-02' : null, created_by: 'u',
@@ -16,10 +17,11 @@ function fixture() {
   const impl = {};
   const record = op => (...args) => { calls.push(op); return impl[op](...args); };
   const refreshes = [];
-  const { ShoppingProvider, useShoppingItems } = load('hooks/useShoppingItems.tsx', {
-    '@/lib/supabase': { supabase: {} }, '@/lib/auth': { useAuth: () => ({ user }) },
+  const boundary = { '@/lib/supabase': { supabase: {} }, '@/lib/auth': { useAuth: () => ({ user }) },
     './household-scope': { useHouseholdScope: () => ({ householdId: household, loading: scope.loading, error: scope.error,
-      refreshHousehold: async () => { refreshes.push(1); } }) },
+      refreshHousehold: async () => { refreshes.push(1); } }) } };
+  const { ShoppingProvider, useShoppingItems } = load('hooks/useShoppingItems.tsx', {
+    ...boundary, './household-list': load('hooks/household-list.ts', boundary),
     '@/lib/shopping-data': { ...real,
       fetchAllShoppingItems: () => { const d = deferred(); reads.push(d); return d.promise; },
       insertShoppingItem: record('insert'), renameShoppingItem: record('rename'),
@@ -63,38 +65,11 @@ test('both consumers observe add, rename, complete, reopen and delete; old reads
   f.dispose();
 });
 
-test('newest read wins and a user or household change clears state and discards old requests', async () => {
-  const f = fixture();
-  let newest;
-  act(() => { newest = f.first.fetchItems(); });
-  await act(async () => { f.reads[1].resolve([row('new')]); await newest; });
-  await act(async () => f.reads[0].resolve([row('old')]));
-  assert.equal(f.first.items[0].id, 'new');
-  let abandoned;
-  act(() => { abandoned = f.first.fetchItems(); });
-  f.change({ id: 'other' }, 'other-household');
-  assert.deepEqual(f.first.items, []);
-  await act(async () => { f.reads[2].resolve([row('private')]); await abandoned; });
-  assert.deepEqual(f.first.items, []);
-  await act(async () => f.reads[3].resolve([row('safe', 'Milk', false, 'other-household')]));
-  assert.equal(f.first.items[0].id, 'safe');
-  f.change({ id: 'other' }, 'third-household');
-  assert.deepEqual(f.first.items, []);
-  f.change(null, null);
-  assert.deepEqual(f.first.items, []);
-  f.dispose();
-});
+readContract({ fixture, row: (id, household) => row(id, 'Milk', false, household), loadError: 'err_load_shopping' });
 
-test('failed initial fetch is err_load_shopping and retry recovers; a household error retries the shared lookup', async () => {
+test('a household error retries the shared lookup, not the list read', async () => {
   const f = fixture();
-  await act(async () => f.reads[0].reject(new Error('offline')));
-  assert.equal(f.first.error, 'err_load_shopping');
-  assert.equal(f.first.loading, false);
-  let retry;
-  act(() => { retry = f.first.retry(); });
-  await act(async () => { f.reads[1].resolve([row()]); await retry; });
-  assert.equal(f.first.error, null);
-  assert.equal(f.first.items.length, 1);
+  await act(async () => f.reads[0].resolve([row()]));
   const reads = f.reads.length;
   f.change({ id: 'u' }, null, { loading: false, error: 'err_household' });
   assert.equal(f.first.error, 'err_household');
