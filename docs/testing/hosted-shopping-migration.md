@@ -18,9 +18,11 @@ history again: KAN-29 already recorded those versions.
    Also retain a separate local reference through 00004 for the after-comparison.
    Do not compare a pre-00004 hosted database against a post-00004 local database
    and waive the resulting differences wholesale.
-3. Review every drift difference. The documented household-name default,
-   preserved RLS helper, exact platform event-trigger bindings and CRLF/LF are
-   the existing exceptions. KAN-31 must be integrated so routine ACLs and
+3. Review every drift difference. The documented household-name default is not
+   a function-definition exception: after CRLF/LF normalization, any
+   `handle_new_profile` difference stops the operation. The preserved RLS helper,
+   exact reviewed platform event-trigger bindings and CRLF/LF are the existing
+   exceptions. KAN-31 must be integrated so routine ACLs and
    non-public event-trigger bindings are visible. A changed binding, ACL or
    unexplained object stops the operation. Non-public function implementation
    coverage remains limited as documented there.
