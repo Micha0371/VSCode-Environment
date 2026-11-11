@@ -7,6 +7,8 @@ check and authorization. KAN-31 must land before that hosted check.
 The [hosted application checklist](../testing/hosted-shopping-migration.md)
 requires saved before/after snapshots and a post-00004 comparison, including the
 new table's forced-RLS flag and effects of the preserved hosted event trigger.
+Hosted status: 00004 was applied and verified on 2026-11-11 from merged commit
+`d116176` (see the checklist's execution record).
 
 `pantry_shopping_items` stores an independent display name, household, optional
 pantry link, `is_checked`, server-managed `completed_at`, nullable `created_by`,
