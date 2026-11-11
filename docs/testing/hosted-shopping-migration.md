@@ -29,6 +29,10 @@ history again: KAN-29 already recorded those versions.
    The recorded legacy profile-body mismatch is tracked by the separate
    [reconciliation proposal](profile-baseline-reconciliation.md); preparing or
    merging that proposal does not waive this stop condition or execute a repair.
+   The authorized repair ran on 2026-11-11 and the unchanged strict preflight
+   then passed with no differences ([execution record](profile-baseline-reconciliation.md#execution-record--2026-11-11)).
+   The stop condition still applies to any future difference; rerun the
+   preflight fresh before applying 00004.
 4. Use the pinned CLI's tracked migration path. Its dry run must show only
    00004 pending; review every proposed action before the explicitly authorized
    application. No SQL Editor replay, seed/config/role changes or unrelated
