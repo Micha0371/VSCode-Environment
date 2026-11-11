@@ -43,18 +43,27 @@ test('open-name uniqueness ignores completed items and self', () => {
 test('error mapping follows the contract', () => {
   const table = [['23505', 'err_duplicate_shopping_item'], ['42501', 'err_shopping_permission'],
     ['PGRST116', 'err_shopping_missing'], ['PF_SHOPPING_MISSING', 'err_shopping_missing'],
-    ['PF_INVALID_SHOPPING', 'err_shopping_invalid'], ['23514', 'err_shopping_invalid'],
-    ['23502', 'err_shopping_invalid'], ['23503', 'err_shopping_invalid'], ['22P02', 'err_shopping_invalid'],
+    ['PF_INVALID_SHOPPING', 'err_shopping_invalid'], ['23503', 'err_shopping_link_missing'],
+    ['23514', 'err_save_shopping'], ['23502', 'err_save_shopping'], ['22P02', 'err_save_shopping'],
     ['XX000', 'err_save_shopping']];
   for (const [code, key] of table) {
     assert.equal(shoppingErrorKey({ code }), key);
     assert.ok(key in en);
   }
+  // Only the name check maps to the name message; other check violations are generic.
+  const check = constraint => ({ code: '23514',
+    message: `new row for relation "pantry_shopping_items" violates check constraint "${constraint}"` });
+  assert.equal(shoppingErrorKey(check('shopping_name_valid')), 'err_shopping_invalid');
+  assert.equal(shoppingErrorKey(check('shopping_completion_valid')), 'err_save_shopping');
+  assert.equal(shoppingErrorKey({ code: '23514', message: 42 }), 'err_save_shopping');
+  // The name message names the name rule; the link message never does.
+  assert.match(en.err_shopping_invalid, /name/);
+  assert.doesNotMatch(en.err_shopping_link_missing, /name|120/);
   for (const value of [new Error('offline'), null, 'str', undefined]) {
     assert.equal(shoppingErrorKey(value), 'err_save_shopping');
   }
   for (const k of ['err_load_shopping', 'err_save_shopping', 'err_duplicate_shopping_item',
-    'err_shopping_invalid', 'err_shopping_permission', 'err_shopping_missing']) assert.ok(en[k]);
+    'err_shopping_invalid', 'err_shopping_link_missing', 'err_shopping_permission', 'err_shopping_missing']) assert.ok(en[k]);
 });
 
 test('reads page beyond the server cap and never return partial lists', async () => {

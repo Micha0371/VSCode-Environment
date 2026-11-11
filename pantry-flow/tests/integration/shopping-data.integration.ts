@@ -71,7 +71,7 @@ test('shopping data module against real local Auth/PostgREST', async t => {
       assert.equal(bPantry.error, null);
       assert.equal(shoppingErrorKey(await rejection(
         insertShoppingItem(a.client, a.household, a.id, { name: 'Linked abroad', pantryItemId: bPantry.data!.id }))),
-      'err_shopping_invalid');
+      'err_shopping_link_missing');
 
       // 121-character name through the raw client, bypassing validateShoppingName.
       const overlong = await a.client.from('pantry_shopping_items').insert({
