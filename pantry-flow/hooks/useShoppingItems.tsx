@@ -57,14 +57,24 @@ function useShoppingState() {
 
   // Invalidate pending reads before each mutation, so an older snapshot cannot
   // overwrite its result. All screens observe this same state instance.
+  // While the list is not loaded for this scope the discarded read is re-run
+  // after the write settles, and a load error stays visible, so a write before
+  // the first load never leaves a partial list or a permanent spinner.
   const beginMutation = () => {
     if (!householdId || !user || !isCurrent(scope)) throw new Error('No active household');
-    generation.current++; setLoading(false); setError(null);
+    const unloaded = loadedScope !== scope;
+    generation.current++; setLoading(false);
+    if (!unloaded) setError(null);
+    return unloaded;
+  };
+  const rereadIfUnloaded = (unloaded: boolean) => {
+    if (unloaded && isCurrent(scope)) void fetchItems();
   };
   const beginItemMutation = (id: string) => {
     if (pendingItems.current.has(id)) throw new Error('Shopping item change is already pending');
-    beginMutation();
+    const unloaded = beginMutation();
     pendingItems.current.add(id);
+    return unloaded;
   };
   const applyResult = (update: (prev: ShoppingItem[]) => ShoppingItem[]) => {
     if (isCurrent(scope)) { generation.current++; setLoading(false); setItems(update); }
@@ -72,23 +82,28 @@ function useShoppingState() {
   // Runs one write for an existing item under the per-item lock and replaces
   // the item with the parsed result the data module returns.
   const changeItem = async (id: string, write: () => Promise<ShoppingItem>) => {
-    beginItemMutation(id);
+    const unloaded = beginItemMutation(id);
     try {
       const item = await write();
       applyResult(prev => prev.map(it => it.id === id ? item : it));
       return item;
     } finally {
       pendingItems.current.delete(id);
+      rereadIfUnloaded(unloaded);
     }
   };
 
   const addItem = async (input: NewShoppingItemInput) => {
     const name = validateShoppingName(input.name);
     assertUniqueOpenName(visibleItems, name);
-    beginMutation();
-    const item = await insertShoppingItem(supabase, householdId!, user!.id, { ...input, name });
-    applyResult(prev => [item, ...prev]);
-    return item;
+    const unloaded = beginMutation();
+    try {
+      const item = await insertShoppingItem(supabase, householdId!, user!.id, { ...input, name });
+      applyResult(prev => [item, ...prev]);
+      return item;
+    } finally {
+      rereadIfUnloaded(unloaded);
+    }
   };
   const renameItem = async (id: string, name: string) => {
     const validated = validateShoppingName(name);
@@ -104,12 +119,13 @@ function useShoppingState() {
     return changeItem(id, () => setShoppingItemChecked(supabase, householdId!, id, false));
   };
   const deleteItem = async (id: string) => {
-    beginItemMutation(id);
+    const unloaded = beginItemMutation(id);
     try {
       await deleteShoppingItem(supabase, householdId!, id);
       applyResult(prev => prev.filter(it => it.id !== id));
     } finally {
       pendingItems.current.delete(id);
+      rereadIfUnloaded(unloaded);
     }
   };
   const retry = householdError || !householdId ? refreshHousehold : fetchItems;

@@ -121,3 +121,22 @@ test('writes send only contract columns and scope by household', async () => {
   next = [];
   await assert.rejects(deleteShoppingItem(client, 'h', '1'), e => e.code === 'PF_SHOPPING_MISSING');
 });
+
+test('writes reject malformed rows and invalid names before any request', async () => {
+  const calls = [];
+  const make = data => {
+    const q = { insert() { return q; }, update() { return q; }, eq() { return q; }, select() { return q; },
+      single() { return Promise.resolve({ data, error: null }); } };
+    return q;
+  };
+  const client = data => ({ from(t) { calls.push(t); return make(data); } });
+  const malformed = client(row('1', { is_checked: 'yes' }));
+  await assert.rejects(insertShoppingItem(malformed, 'h', 'u', { name: 'Milk' }), /Invalid shopping item/);
+  await assert.rejects(renameShoppingItem(malformed, 'h', '1', 'Oats'), /Invalid shopping item/);
+  assert.equal(calls.length, 2);
+  calls.length = 0;
+  const ok = client(row('1'));
+  await assert.rejects(insertShoppingItem(ok, 'h', 'u', { name: '   ' }), e => e.code === 'PF_INVALID_SHOPPING');
+  await assert.rejects(async () => renameShoppingItem(ok, 'h', '1', '   '), e => e.code === 'PF_INVALID_SHOPPING');
+  assert.equal(calls.length, 0);
+});

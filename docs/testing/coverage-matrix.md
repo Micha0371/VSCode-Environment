@@ -13,7 +13,7 @@ suite passed. Execution results are recorded separately in README.md.
 ## Slice 2 database coverage — KAN-7 / KAN-30
 
 Contract: [approved D1/D2/D4 model](../planning/slice-2-shopping-database.md).
-These cases cover persistence, not the future shopping screens/providers.
+These cases cover persistence and the shopping data/provider layer (steps 1 and 2); no shopping screens exist yet.
 
 | ID | Observable outcome | Automated coverage | Limit |
 | --- | --- | --- | --- |
@@ -32,7 +32,7 @@ These cases cover persistence, not the future shopping screens/providers.
 | DB-ENV-02 | Every migration from 00004 on applies without `extensions` on search_path, as in the hosted CLI push session | migration-push-search-path.test.cjs (PGlite, fast job), with a negative control for an unqualified `uuid_generate_v4()` | Models only search_path resolution, not every hosted login-role privilege; added after the 2026-11-11 hosted 00004 push failed and rolled back |
 | DB-ENV-01 | Running PostgreSQL major must be 17 | Separate environment.test.sql, plan(1), in existing database CI job | The identical assertion was demonstrated failing on separate local 15.19; update deliberately with future major upgrades |
 
-Local validation on 2026-11-11: 53 Node checks, Jest/RNTL, typecheck and target
+KAN-7 / step-1 local validation on 2026-11-11: 53 Node checks, Jest/RNTL, typecheck and target
 safety passed; 21 original + 1 environment + 43 shopping pgTAP assertions passed;
 six original API groups, six shopping groups and two real-email cases passed.
 The actual PostgreSQL 17.11 incremental-upgrade probe started from 00001–00003
@@ -41,6 +41,7 @@ applied only 00004; saved before/after snapshots of all four original tables
 matched exactly, then the fixture was removed. Ignored local evidence includes
 `kan7-upgrade-{before,after,result}.json` and `kan30-negative-result.json`.
 CI and Android results on the exact PR head remain separate required checks.
+Step 2 local validation (shopping data module and provider, after the final review fixes): 91 Node tests and 1 Jest/RNTL test from `npm run test:fast`; 65 pgTAP assertions in 3 files and 21 integration tests from `npm run test:local`.
 
 Concurrency limit: the API tests dispatch requests together from separate
 authenticated clients, but do not force or prove overlapping execution inside

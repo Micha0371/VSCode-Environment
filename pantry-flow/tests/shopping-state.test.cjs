@@ -210,6 +210,75 @@ test('concurrent adds of one name leave exactly one item', async () => {
   f.dispose();
 });
 
+test('a write while the first read is in flight ends with the full server list, not a stuck spinner', async () => {
+  const f = fixture();
+  f.impl.insert = async () => row('new', 'New');
+  await act(async () => { await f.first.addItem({ name: 'New' }); });
+  await act(async () => f.reads[f.reads.length - 1].resolve([row('new', 'New'), row('a', 'A'), row('b', 'B')]));
+  assert.equal(f.first.loading, false);
+  assert.equal(f.first.error, null);
+  assert.deepEqual(f.first.items.map(i => i.id).sort(), ['a', 'b', 'new']);
+  f.dispose();
+});
+
+test('a successful write after a failed load re-reads instead of showing a partial list', async () => {
+  const f = fixture();
+  await act(async () => f.reads[0].reject(new Error('offline')));
+  assert.equal(f.first.error, 'err_load_shopping');
+  f.impl.insert = async () => row('new', 'New');
+  await act(async () => { await f.first.addItem({ name: 'New' }); });
+  await act(async () => f.reads[f.reads.length - 1].resolve([row('new', 'New'), row('a', 'A')]));
+  assert.equal(f.reads.length, 2);
+  assert.equal(f.first.loading, false);
+  assert.equal(f.first.error, null);
+  assert.deepEqual(f.first.items.map(i => i.id).sort(), ['a', 'new']);
+  f.dispose();
+});
+
+test('a failed write after a failed load keeps the load error and retry recovers', async () => {
+  const f = fixture();
+  await act(async () => f.reads[0].reject(new Error('offline')));
+  f.impl.insert = async () => { throw new Error('offline'); };
+  await act(async () => { await assert.rejects(f.first.addItem({ name: 'New' }), /offline/); });
+  await act(async () => f.reads[f.reads.length - 1].reject(new Error('offline')));
+  assert.equal(f.first.loading, false);
+  assert.equal(f.first.error, 'err_load_shopping');
+  let retry;
+  act(() => { retry = f.first.retry(); });
+  await act(async () => { f.reads[f.reads.length - 1].resolve([row('a', 'A')]); await retry; });
+  assert.equal(f.first.error, null);
+  assert.equal(f.first.loading, false);
+  assert.deepEqual(f.first.items.map(i => i.id), ['a']);
+  f.dispose();
+});
+
+test("a write that resolves after a household change does not appear in the new household's list", async () => {
+  const f = fixture();
+  await act(async () => f.reads[0].resolve([]));
+  const pending = deferred();
+  f.impl.insert = () => pending.promise;
+  let adding;
+  act(() => { adding = f.first.addItem({ name: 'Eggs' }); });
+  f.change({ id: 'u' }, 'h2');
+  await act(async () => f.reads[1].resolve([row('x', 'Tea', false, 'h2')]));
+  await act(async () => { pending.resolve(row('late', 'Eggs', false, 'h')); await adding; });
+  assert.deepEqual(f.first.items.map(i => i.id), ['x']);
+  f.dispose();
+});
+
+test("a read started under the old household cannot populate the new household's list", async () => {
+  const f = fixture();
+  await act(async () => f.reads[0].resolve([]));
+  let oldRead;
+  act(() => { oldRead = f.first.fetchItems(); });
+  f.change({ id: 'u' }, 'h2');
+  await act(async () => { f.reads[1].resolve([row('old', 'Milk', false, 'h')]); await oldRead; });
+  assert.deepEqual(f.first.items, []);
+  await act(async () => f.reads[2].resolve([row('x', 'Tea', false, 'h2')]));
+  assert.deepEqual(f.first.items.map(i => i.id), ['x']);
+  f.dispose();
+});
+
 test('useShoppingItems outside ShoppingProvider throws', () => {
   const f = fixture();
   f.dispose();
