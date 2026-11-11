@@ -67,12 +67,18 @@ function useShoppingState() {
     if (!unloaded) setError(null);
     return unloaded;
   };
-  // Also re-read when a write failed because the record is missing, so a row
-  // another member deleted disappears. The caller still gets the original error.
+  // Also re-read when a write failed because the record is missing, so other
+  // changes are picked up. The caller still gets the original error.
   const rereadIfUnloaded = (unloaded: boolean) => {
     if (unloaded && isCurrent(scope)) void fetchItems();
   };
-  const isMissing = (error: unknown) => shoppingErrorKey(error) === 'err_shopping_missing';
+  // A missing record is gone for this household, so drop it at once. A later
+  // write may discard the re-read; the row must not depend on it to disappear.
+  const dropIfMissing = (id: string, error: unknown) => {
+    if (shoppingErrorKey(error) !== 'err_shopping_missing') return false;
+    if (isCurrent(scope)) setItems(prev => prev.filter(it => it.id !== id));
+    return true;
+  };
   const beginItemMutation = (id: string) => {
     if (pendingItems.current.has(id)) throw new Error('Shopping item change is already pending');
     const unloaded = beginMutation();
@@ -91,7 +97,7 @@ function useShoppingState() {
       applyResult(prev => prev.map(it => it.id === id ? item : it));
       return item;
     } catch (error) {
-      if (isMissing(error)) reread = true;
+      if (dropIfMissing(id, error)) reread = true;
       throw error;
     } finally {
       pendingItems.current.delete(id);
@@ -105,7 +111,8 @@ function useShoppingState() {
     const unloaded = beginMutation();
     try {
       const item = await insertShoppingItem(supabase, householdId!, user!.id, { ...input, name });
-      applyResult(prev => [item, ...prev]);
+      // A refresh may already hold this row; replace it instead of adding a copy.
+      applyResult(prev => [item, ...prev.filter(it => it.id !== item.id)]);
       return item;
     } finally {
       rereadIfUnloaded(unloaded);
@@ -130,7 +137,7 @@ function useShoppingState() {
       await deleteShoppingItem(supabase, householdId!, id);
       applyResult(prev => prev.filter(it => it.id !== id));
     } catch (error) {
-      if (isMissing(error)) reread = true;
+      if (dropIfMissing(id, error)) reread = true;
       throw error;
     } finally {
       pendingItems.current.delete(id);

@@ -368,3 +368,36 @@ test("a write that settles after a household change does not strand the new hous
   assert.equal(f.first.error, null);
   f.dispose();
 });
+
+test('a refresh that sees an added row before the insert returns leaves one entry', async () => {
+  const f = fixture();
+  await act(async () => f.reads[0].resolve([row('a', 'A')]));
+  const pending = deferred();
+  f.impl.insert = () => pending.promise;
+  let adding, refresh;
+  act(() => { adding = f.first.addItem({ name: 'Eggs' }); });
+  act(() => { refresh = f.second.fetchItems(); });
+  await act(async () => { f.reads[1].resolve([row('new', 'Eggs'), row('a', 'A')]); await refresh; });
+  await act(async () => { pending.resolve(row('new', 'Eggs')); await adding; });
+  assert.deepEqual(f.first.items.map(i => i.id), ['new', 'a']);
+  assert.deepEqual(f.second.items.map(i => i.id), ['new', 'a']);
+  assert.equal(f.first.loading, false);
+  f.dispose();
+});
+
+test('an unrelated write cannot cancel missing-record recovery', async () => {
+  const f = fixture();
+  await act(async () => f.reads[0].resolve([row('1', 'Milk'), row('2', 'Eggs')]));
+  f.impl.delete = async () => { throw Object.assign(new Error('gone'), { code: 'PF_SHOPPING_MISSING' }); };
+  f.impl.rename = async () => { throw Object.assign(new Error('gone'), { code: 'PGRST116' }); };
+  await act(async () => { await assert.rejects(f.first.deleteItem('1'), e => e.code === 'PF_SHOPPING_MISSING'); });
+  assert.deepEqual(f.first.items.map(i => i.id), ['2']);
+  f.impl.check = async (_c, _h, _id, checked) => row('2', 'Eggs', checked);
+  await act(async () => { await f.second.completeItem('2'); });
+  await act(async () => f.reads[1].resolve([row('2', 'Eggs')]));
+  assert.deepEqual(f.first.items.map(i => [i.id, i.is_checked]), [['2', true]]);
+  assert.equal(f.first.loading, false);
+  await act(async () => { await assert.rejects(f.first.renameItem('2', 'Tea'), e => e.code === 'PGRST116'); });
+  assert.deepEqual(f.second.items, []);
+  f.dispose();
+});
