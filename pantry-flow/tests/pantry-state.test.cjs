@@ -19,7 +19,7 @@ function fixture() {
     then(yes, no) { return Promise.resolve(mutationResult).then(yes, no); } }; } };
   const { PantryProvider, usePantryItems } = load('hooks/usePantryItems.tsx', {
     '@/lib/supabase': { supabase }, '@/lib/auth': { useAuth: () => ({ user }) },
-    './useHousehold': { useHousehold: () => ({ householdId: household, loading: false, error: null, refreshHousehold: async () => {} }) },
+    './household-scope': { useHouseholdScope: () => ({ householdId: household, loading: false, error: null, refreshHousehold: async () => {} }) },
     '@/lib/pantry-data': { ...data, fetchAllItems: () => { const d = deferred(); reads.push(d); return d.promise; } },
   });
   function One() { first = usePantryItems(); return null; }

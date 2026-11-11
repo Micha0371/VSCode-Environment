@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 
-// Used once by PantryProvider; screens consume the shared provider instead.
+// Used once by HouseholdProvider; providers and screens consume useHouseholdScope.
 export function useHousehold() {
   const { user } = useAuth();
   const userId = user?.id;
