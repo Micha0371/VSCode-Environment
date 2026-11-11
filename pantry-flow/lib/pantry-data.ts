@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { CATEGORIES, LOCATIONS, STATUSES } from './constants';
+import { fetchAllPages, PAGE_SIZE } from './pagination';
 import type { StatusKey } from './theme';
 
 export interface PantryItem {
@@ -18,7 +19,7 @@ export interface NewItemInput { name: string; category: string; location: string
 export interface UpdateItemInput extends NewItemInput { status: StatusKey }
 
 export const ITEM_NAME_MAX = 120;
-export const PAGE_SIZE = 200;
+export { PAGE_SIZE };
 
 export function normalizedItemName(name: string) {
   return name.trim().toLowerCase();
@@ -63,23 +64,12 @@ export function parseItem(value: unknown): PantryItem {
   return row as unknown as PantryItem;
 }
 
-export async function fetchAllItems(client: SupabaseClient, householdId: string) {
-  const items: PantryItem[] = [];
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const { data, error, count } = await client.from('pantry_items')
+export function fetchAllItems(client: SupabaseClient, householdId: string) {
+  return fetchAllPages(
+    (from, to) => client.from('pantry_items')
       .select('*', { count: 'exact' }).eq('household_id', householdId)
       .order('created_at', { ascending: false }).order('id', { ascending: false })
-      .range(offset, offset + PAGE_SIZE - 1);
-    if (error) throw error;
-    const page = (data ?? []).map(parseItem);
-    items.push(...page);
-    if (count !== null && items.length >= count) return items;
-    // Do not silently truncate if the server's response cap is below PAGE_SIZE.
-    if (page.length === 0) {
-      if (count !== null && items.length < count) throw new Error('Incomplete inventory');
-      return items;
-    }
-    if (count === null && page.length < PAGE_SIZE) return items;
-    if (page.length < PAGE_SIZE) throw new Error('Server row limit is below page size');
-  }
+      .range(from, to),
+    parseItem,
+  );
 }
