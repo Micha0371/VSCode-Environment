@@ -4,6 +4,9 @@ Implements decisions D1/D2/D4 in [the approved plan](slice-2-implementation-plan
 Migration `00004_shopping_items.sql` follows 00001–00003 unchanged. This PR
 authors/tests it locally; applying it to hosted requires a separate fresh drift
 check and authorization. KAN-31 must land before that hosted check.
+The [hosted application checklist](../testing/hosted-shopping-migration.md)
+requires saved before/after snapshots and a post-00004 comparison, including the
+new table's forced-RLS flag and effects of the preserved hosted event trigger.
 
 `pantry_shopping_items` stores an independent display name, household, optional
 pantry link, `is_checked`, server-managed `completed_at`, nullable `created_by`,

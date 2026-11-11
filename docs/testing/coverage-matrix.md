@@ -22,7 +22,7 @@ These cases cover persistence, not the future shopping screens/providers.
 | SHOP-DB-03 | Concurrent add, rename, reopen and add-versus-reopen produce one open winner | Separate authenticated clients through real PostgREST | PGlite is not used as concurrency evidence |
 | SHOP-DB-04 | Completion is server-timed, retained and reopenable; edits preserve completion time; shopping does not change pantry state | pgTAP and API full pantry-row comparison | No bulk clear or automatic pantry synchronization |
 | SHOP-DB-05 | Foreign/anonymous access, forged creators and client-owned timestamp/identity changes fail | Ordinary-role pgTAP and public-key API checks | Admin used only for fixture preparation/deletion |
-| SHOP-DB-06 | Cross-household pantry links fail; pantry deletion clears only link; household/name/completion survive | Composite-FK pgTAP and direct API add/update/deletion | Optional link may be retargeted only inside same household |
+| SHOP-DB-06 | Cross-household links fail; same-household relink preserves name/completion; deleting the former target preserves the new link, deleting the current target clears only the link | Composite-FK pgTAP and direct API add/update/relink/deletion | Optional links remain inside the same household |
 | SHOP-DB-07 | Members may edit another author's item; author deletion nulls attribution; household deletion cascades rows | API shared-membership fixture plus pgTAP deletion assertions | No invitations or multi-household UI introduced |
 | SHOP-DB-08 | 00004 preserves populated Slice 1.1 rows | PGlite upgrade regression in database.test.cjs | Supplemental actual local PG17 incremental-upgrade probe passed; not production populated-upgrade approval |
 | DB-ENV-01 | Running PostgreSQL major must be 17 | Separate environment.test.sql, plan(1), in existing database CI job | The identical assertion was demonstrated failing on separate local 15.19; update deliberately with future major upgrades |
@@ -36,6 +36,12 @@ applied only 00004; saved before/after snapshots of all four original tables
 matched exactly, then the fixture was removed. Ignored local evidence includes
 `kan7-upgrade-{before,after,result}.json` and `kan30-negative-result.json`.
 CI and Android results on the exact PR head remain separate required checks.
+
+Concurrency limit: the API tests dispatch requests together from separate
+authenticated clients, but do not force or prove overlapping execution inside
+PostgreSQL. The one-winner outcomes remain valid in either serialization; the
+partial unique index is the authoritative protection. These cases are not
+evidence that a particular lock interleaving was exercised.
 
 ## Slice 1.1 baseline coverage
 
