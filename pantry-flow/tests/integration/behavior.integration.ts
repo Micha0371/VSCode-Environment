@@ -199,9 +199,23 @@ test('shopping persistence enforces the approved open-name, lifecycle and househ
     await t.test('pantry links are household-consistent and pantry deletion preserves shopping state', async () => {
       assert.equal((await insert(a, 'Foreign link', { pantry_item_id: pantryB.id })).error?.code, '23503');
       assert.equal((await a.client.from(table).update({ pantry_item_id: pantryB.id }).eq('id', milk.id)).error?.code, '23503');
+      const alternate = ok(await a.client.from('pantry_items').insert({ household_id: a.household,
+        created_by: a.id, name: 'Pantry oats', status: 'out' }).select().single())!;
       ok(await a.client.from(table).update({ is_checked: true }).eq('id', milk.id));
-      const before = await row(milk.id);
+      const original = await row(milk.id);
+      assert.ok(original.completed_at);
+      const relinked = ok(await a.client.from(table).update({ pantry_item_id: alternate.id })
+        .eq('id', milk.id).select().single())!;
+      assert.equal(relinked.pantry_item_id, alternate.id);
+      assert.equal(relinked.name, original.name);
+      assert.equal(relinked.household_id, original.household_id);
+      assert.equal(relinked.is_checked, original.is_checked);
+      assert.equal(relinked.completed_at, original.completed_at);
+      assert.deepEqual(ok(await a.client.from('pantry_items').select().eq('id', alternate.id).single()), alternate);
       ok(await a.client.from('pantry_items').delete().eq('id', pantryA.id));
+      assert.equal((await row(milk.id)).pantry_item_id, alternate.id, 'deleting the former target leaves the new link intact');
+      const before = await row(milk.id);
+      ok(await a.client.from('pantry_items').delete().eq('id', alternate.id));
       const after = await row(milk.id);
       assert.equal(after.pantry_item_id, null); assert.equal(after.name, before.name);
       assert.equal(after.household_id, before.household_id); assert.equal(after.completed_at, before.completed_at);

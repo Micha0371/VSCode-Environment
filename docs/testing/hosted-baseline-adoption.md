@@ -67,11 +67,20 @@ schema. Each event entry includes `function_schema`; extension-owned functions
 do not cause their non-extension-member event triggers to be hidden. These
 fields supplement the narrower application catalog rather than replacing it.
 
+Remaining limit: event-trigger entries identify the invoked function's schema
+and name, but bodies/ACLs of functions outside public are not included. A change
+to `extensions.grant_pg_net_access()` implementation can therefore escape this
+inventory. A deeper platform audit needs targeted read-only definition/grant
+snapshots; KAN-31 does not claim that coverage.
+
 Compare ACLs as complete grantee/privilege/grantor entries (array ordering alone
 is insignificant). `X` means EXECUTE, an empty grantee means PUBLIC, and `*`
 denotes grant option. A null `proacl` means PostgreSQL's default ACL, not an empty
 grant set: resolve its default semantics before accepting any difference. Do
 not omit ACLs when comparing definitions or normalize away added grants.
+The SQL output preserves catalog ACL ordering, so a strict field comparison
+can conservatively flag an order-only change. Review the complete entries
+manually in that case rather than ignoring the ACL field.
 
 The 2026-11-11 KAN-31 comparison queried hosted once, read-only, against a fresh
 local 17.11 reference. All five application routines had identical local/hosted
