@@ -103,6 +103,7 @@ export const en = {
   err_save_shopping: 'Could not save the shopping list item. Please try again.',
   err_duplicate_shopping_item: 'This item is already on your shopping list.',
   err_shopping_invalid: 'Use a name of 1 to 120 characters.',
+  err_shopping_link_missing: 'The pantry item for this entry is no longer available.',
   err_shopping_permission: 'You do not have access to this shopping list.',
   err_shopping_missing: 'This shopping list item is no longer available.',
   err_generic: 'Something went wrong. Please try again.',

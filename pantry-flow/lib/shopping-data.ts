@@ -17,7 +17,7 @@ export interface NewShoppingItemInput { name: string; pantryItemId?: string | nu
 
 export type ShoppingErrorKey =
   | 'err_duplicate_shopping_item' | 'err_shopping_permission' | 'err_shopping_missing'
-  | 'err_shopping_invalid' | 'err_save_shopping';
+  | 'err_shopping_invalid' | 'err_shopping_link_missing' | 'err_save_shopping';
 
 export const SHOPPING_NAME_MAX = 120;
 
@@ -65,14 +65,20 @@ export function parseShoppingItem(value: unknown): ShoppingItem {
   return row as unknown as ShoppingItem;
 }
 
+// The name message is shown only for a name the client or the name check
+// rejected. A rejected pantry link (23503) has its own message; other invalid
+// requests (23502, 22P02, other checks) fall back to the generic save error.
 export function shoppingErrorKey(error: unknown): ShoppingErrorKey {
-  const code = error !== null && typeof error === 'object' && 'code' in error ? error.code : undefined;
-  switch (code) {
+  const fields = error !== null && typeof error === 'object' ? error as { code?: unknown; message?: unknown } : {};
+  switch (fields.code) {
     case '23505': return 'err_duplicate_shopping_item';
     case '42501': return 'err_shopping_permission';
     case 'PGRST116': case 'PF_SHOPPING_MISSING': return 'err_shopping_missing';
-    case 'PF_INVALID_SHOPPING': case '23514': case '23502': case '23503': case '22P02':
-      return 'err_shopping_invalid';
+    case 'PF_INVALID_SHOPPING': return 'err_shopping_invalid';
+    case '23514':
+      return typeof fields.message === 'string' && fields.message.includes('"shopping_name_valid"')
+        ? 'err_shopping_invalid' : 'err_save_shopping';
+    case '23503': return 'err_shopping_link_missing';
     default: return 'err_save_shopping';
   }
 }
