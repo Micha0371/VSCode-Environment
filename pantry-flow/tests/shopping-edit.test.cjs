@@ -47,9 +47,10 @@ test('the modal shows the current name and saves a rename, then closes', async (
 test('a duplicate rename keeps the modal open with the typed name', async () => {
   const { renderer, log, by, field } = render({ state: { renameItem: async () => { throw { code: '23505' }; } } });
   try {
+    act(() => field().props.onChangeText('Bread'));
     await act(async () => by('shopping-edit-save').props.onPress());
     assert.equal(field().props.error, 'err_duplicate_shopping_item');
-    assert.equal(field().props.value, 'Milk');
+    assert.equal(field().props.value, 'Bread');
     assert.equal(log.back, 0);
   } finally { act(() => renderer.unmount()); }
 });

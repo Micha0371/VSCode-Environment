@@ -190,6 +190,21 @@ test('Add is disabled without a household', () => {
   try { assert.equal(submit().props.disabled, true); } finally { act(() => renderer.unmount()); }
 });
 
+test('keyboard submit without a household does not add', async () => {
+  const calls = [];
+  const { renderer, input } = renderAdd({ householdId: null, addItem: async arg => { calls.push(arg); return row('m'); } });
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    await act(async () => { input().props.onSubmitEditing(); });
+    assert.deepEqual(calls, []);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('the add field limits the name length like the edit modal', () => {
+  const { renderer, input } = renderAdd({});
+  try { assert.equal(input().props.maxLength, 120); } finally { act(() => renderer.unmount()); }
+});
+
 test('the add bar shows with items and empty, not in the error or loading states', () => {
   for (const state of [{ items: [row('a')] }, {}]) {
     const { renderer, input } = renderAdd(state);
@@ -255,8 +270,61 @@ test('a failed toggle shows the translated error and keeps the list', async () =
     assert.match(JSON.stringify(alerts()[0].props.children), /err_shopping_missing/);
     assert.equal(renderer.root.findByType('SectionList').props.sections[0].data[0], items[0]);
     assert.equal(rowProps(items[0]).pending, false);
+    // A later successful toggle does not hide the failure; only a new start clears it.
     fail = false;
     await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a successful add clears a stale toggle error', async () => {
+  const items = [row('1')];
+  const { renderer, rowProps, alerts, input } = renderToggle({ items,
+    completeItem: async () => { throw Object.assign(new Error('gone'), { code: 'PGRST116' }); } });
+  try {
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 1);
+    act(() => input().props.onChangeText('Eggs'));
+    await act(async () => { renderer.root.findByProps({ testID: 'shopping-add-submit' }).props.onPress(); });
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a new toggle start clears the previous toggle error immediately', async () => {
+  const items = [row('1'), row('2')]; const d = deferred();
+  const { renderer, rowProps, alerts } = renderToggle({ items,
+    completeItem: id => { if (id === '1') throw Object.assign(new Error('gone'), { code: 'PGRST116' }); return d.promise; } });
+  try {
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 1);
+    act(() => { rowProps(items[1]).onToggle(); });
+    assert.equal(alerts().length, 0);
+    await act(async () => { d.resolve(); await d.promise; });
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a late success of another toggle does not hide an earlier failure', async () => {
+  const items = [row('a'), row('b')]; const da = deferred(); const db = deferred();
+  const { renderer, rowProps, alerts } = renderToggle({ items,
+    completeItem: id => (id === 'a' ? da.promise : db.promise) });
+  try {
+    act(() => { rowProps(items[1]).onToggle(); rowProps(items[0]).onToggle(); });
+    await act(async () => { da.reject(Object.assign(new Error('gone'), { code: 'PGRST116' })); await da.promise.catch(() => {}); });
+    assert.equal(alerts().length, 1);
+    await act(async () => { db.resolve(); await db.promise; });
+    assert.equal(alerts().length, 1);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a household change clears the toggle error', async () => {
+  const items = [row('1')];
+  const state = { items, householdId: 'h', completeItem: async () => { throw Object.assign(new Error('gone'), { code: 'PGRST116' }); } };
+  const { renderer, rowProps, alerts } = renderToggle(state);
+  try {
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 1);
+    state.householdId = 'h2';
+    act(() => renderer.update(React.createElement(renderer.root.type)));
     assert.equal(alerts().length, 0);
   } finally { act(() => renderer.unmount()); }
 });

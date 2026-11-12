@@ -7,7 +7,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { useShoppingItems } from '@/hooks/useShoppingItems';
 import { useTranslation } from '@/lib/i18n';
-import { shoppingErrorKey, splitShoppingItems, type ShoppingItem as ShoppingItemData } from '@/lib/shopping-data';
+import { SHOPPING_NAME_MAX, shoppingErrorKey, splitShoppingItems, type ShoppingItem as ShoppingItemData } from '@/lib/shopping-data';
 import { colors, spacing, typography } from '@/lib/theme';
 
 export default function ShoppingScreen() {
@@ -17,6 +17,7 @@ export default function ShoppingScreen() {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   // Screen-local lock (not useItemMutation): the tab stays mounted, so a success must
   // clear the field regardless of focus. The ref blocks a second synchronous submit.
   const lock = useRef(false);
@@ -27,13 +28,14 @@ export default function ShoppingScreen() {
   }, []);
 
   const submit = useCallback(async () => {
-    if (lock.current) return;
+    if (!householdId || lock.current) return;
     lock.current = true;
     setBusy(true);
     setAddError(null);
     const submitted = name;
     try {
       await addItem({ name: submitted });
+      if (mounted.current) setActionError(null);
       // Clear only if the user has not started typing the next item.
       if (mounted.current) setName(current => (current === submitted ? '' : current));
     } catch (e) {
@@ -42,21 +44,22 @@ export default function ShoppingScreen() {
       lock.current = false;
       if (mounted.current) setBusy(false);
     }
-  }, [addItem, name, t]);
+  }, [addItem, householdId, name, t]);
+
+  // The toggle error belongs to one household's list.
+  useEffect(() => { setActionError(null); }, [householdId]);
 
   // Per-item lock: the ref stops a second synchronous tap before the provider is called;
   // the mirrored state drives each row's pending prop.
   const toggling = useRef(new Set<string>());
   const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [actionError, setActionError] = useState<string | null>(null);
-
   const toggle = useCallback(async (item: ShoppingItemData) => {
     if (toggling.current.has(item.id)) return;
     toggling.current.add(item.id);
+    setActionError(null);
     setPendingIds(new Set(toggling.current));
     try {
       await (item.is_checked ? reopenItem(item.id) : completeItem(item.id));
-      if (mounted.current) setActionError(null);
     } catch (e) {
       if (mounted.current) setActionError(t(shoppingErrorKey(e)));
     } finally {
@@ -98,6 +101,7 @@ export default function ShoppingScreen() {
           value={name}
           onChangeText={setName}
           placeholder={t('shopping_add_placeholder')}
+          maxLength={SHOPPING_NAME_MAX}
           error={addError}
           returnKeyType="done"
           submitBehavior="submit"
