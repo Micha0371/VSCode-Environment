@@ -64,5 +64,17 @@ test('name press target is disabled without onPress and enabled with it', () => 
   });
   withRow({ item: item(), onPress: () => {} }, root => {
     assert.equal(root.findByProps({ testID: 'shopping-item-i1' }).props.disabled, false);
+    assert.equal(root.findByProps({ testID: 'shopping-item-i1' }).props.accessibilityRole, 'button');
+  });
+});
+
+test('toggle touch target is at least 44pt including hitSlop', () => {
+  withRow({ item: item(), onToggle: () => {} }, root => {
+    const toggle = root.findByProps({ testID: 'shopping-toggle-i1' });
+    const s = flat(toggle.props.style({ pressed: false }));
+    const slop = toggle.props.hitSlop;
+    const size = 26 + 2 * s.padding;
+    assert.ok(size + slop.left + slop.right >= 44, 'horizontal target');
+    assert.ok(size + slop.top + slop.bottom >= 44, 'vertical target');
   });
 });

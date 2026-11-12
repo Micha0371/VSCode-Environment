@@ -223,6 +223,9 @@ Ruling: the inline add uses a screen-local synchronous lock (a `useRef` boolean,
 
 ## Notes and rulings carried into execution
 
+- PR #30 review follow-up: the Shopping screen's local state is keyed by household. A household change resets drafts, locks and errors; callbacks from an earlier visit cannot update the current screen, even after returning to the original household. Three regression cases failed before this fix and pass afterward.
+- The planned focus-change unit test was removed: the screen does not register a focus callback, so the stub exercised no tab switch. Add completion, draft preservation and absence of programmatic focus remain covered. Real tab-switch lifecycle verification is deferred to step 5 and is not counted as automated coverage here.
+
 - KAN-16 and KAN-18 were written before the provider existed. Their "shared shopping provider contract" is `hooks/useShoppingItems.tsx` on `main`. The "KAN-11 operations" that KAN-17 mentions are its operations.
 - PRD Flow 5 ("checking off removes the item") and its "All items checked: option to clear" are superseded by D2.
 - The Jest timeout raise addresses the cold-cache failures of 2026-11-11 and 2026-11-12. It is not a cover for slow tests: a warm run takes about 1.8 s.

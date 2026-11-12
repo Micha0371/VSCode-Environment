@@ -2,13 +2,14 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const React = require('react');
 const { create, act } = require('react-test-renderer');
-const { load } = require('./helpers.cjs');
+const { load, deferred } = require('./helpers.cjs');
 const theme = load('lib/theme.ts');
 const native = { Text: 'Text', View: 'View', ActivityIndicator: 'Spinner', SectionList: 'SectionList',
   Pressable: 'Pressable', StyleSheet: { create: styles => styles } };
 const t = key => key;
-const shared = { 'react-native': native, '@/lib/theme': theme, '@expo/vector-icons': { Ionicons: 'Icon' },
-  '@/lib/i18n': { useTranslation: () => ({ t }) }, '@/components/Button': { Button: 'Button' },
+const pushes = [];
+const shared = { 'expo-router': { useRouter: () => ({ push: route => pushes.push(route) }) }, 'react-native': native, '@/lib/theme': theme, '@expo/vector-icons': { Ionicons: 'Icon' },
+  '@/lib/i18n': { useTranslation: () => ({ t }) }, '@/components/Button': { Button: 'Button' }, '@/components/Input': { Input: 'Input' },
   '@/components/EmptyState': { EmptyState: 'EmptyState' }, '@/components/ShoppingItem': { ShoppingItem: 'Row' },
   '@/lib/shopping-data': load('lib/shopping-data.ts', { './pagination': load('lib/pagination.ts') }) };
 
@@ -79,4 +80,329 @@ test('open items come before completed items, each under its heading', () => {
   try {
     assert.deepEqual(r2.root.findByType('SectionList').props.sections.map(s => s.key), ['open']);
   } finally { act(() => r2.unmount()); }
+});
+
+// ---- Inline add ----
+// Node string stubs: these pin the screen's wiring and contract props. They do not
+// establish real Android keyboard behaviour (Maestro covers that).
+function renderAdd(state) {
+  const focusCalls = [];
+  const focusStub = React.forwardRef((props, ref) => {
+    const handle = { focus: () => focusCalls.push('focus') };
+    if (typeof ref === 'function') ref(handle); else if (ref) ref.current = handle;
+    return React.createElement('Input', props);
+  });
+  const { default: Screen } = load('app/(tabs)/shopping.tsx', { ...shared,
+    '@/components/Input': { Input: focusStub },
+    'expo-router': { useRouter: () => ({ push: route => pushes.push(route) }) },
+    '@/hooks/useShoppingItems': { useShoppingItems: () => ({ householdId: 'h', items: [], loading: false,
+      error: null, retry: () => {}, addItem: async () => row('new'), ...state }) } });
+  let renderer;
+  act(() => { renderer = create(React.createElement(Screen)); });
+  const input = () => renderer.root.findByType('Input');
+  const submit = () => renderer.root.findByProps({ testID: 'shopping-add-submit' });
+  return { renderer, input, submit, focusCalls };
+}
+
+test('adding submits the typed name once, clears the field and keeps focus', async () => {
+  const calls = []; const d = deferred();
+  const { renderer, input, submit, focusCalls } = renderAdd({ addItem: arg => { calls.push(arg); return d.promise; } });
+  try {
+    assert.equal(input().props.testID, 'shopping-add-input');
+    assert.equal(input().props.placeholder, 'shopping_add_placeholder');
+    assert.equal(input().props.submitBehavior, 'submit');
+    assert.equal(submit().props.label, 'shopping_add_button');
+    act(() => input().props.onChangeText(' Milk '));
+    act(() => { submit().props.onPress(); submit().props.onPress(); });
+    assert.deepEqual(calls, [{ name: ' Milk ' }]);
+    await act(async () => { d.resolve(row('m')); await d.promise; });
+    assert.equal(input().props.value, '');
+    act(() => input().props.onChangeText('Eggs'));
+    await act(async () => { input().props.onSubmitEditing(); });
+    assert.deepEqual(calls, [{ name: ' Milk ' }, { name: 'Eggs' }]);
+    assert.deepEqual(focusCalls, []);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a rejected add keeps the text and shows the translated error', async () => {
+  let fail = true;
+  const { renderer, input, submit } = renderAdd({ addItem: async () => {
+    if (fail) throw Object.assign(new Error('dup'), { code: '23505' });
+    return row('m');
+  } });
+  try {
+    act(() => input().props.onChangeText(' Milk '));
+    await act(async () => { submit().props.onPress(); });
+    assert.equal(input().props.value, ' Milk ');
+    assert.equal(input().props.error, 'err_duplicate_shopping_item');
+    fail = false;
+    await act(async () => { submit().props.onPress(); });
+    assert.equal(input().props.value, '');
+    assert.equal(input().props.error, null);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('text typed while an add is in flight is kept', async () => {
+  const d = deferred();
+  const { renderer, input, submit } = renderAdd({ addItem: () => d.promise });
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    act(() => { submit().props.onPress(); });
+    assert.notEqual(input().props.editable, false);
+    act(() => input().props.onChangeText('Eggs'));
+    assert.notEqual(input().props.editable, false);
+    await act(async () => { d.resolve(row('m')); await d.promise; });
+    assert.equal(input().props.value, 'Eggs');
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('the add bar never moves focus itself', async () => {
+  let fail = false;
+  const { renderer, input, submit, focusCalls } = renderAdd({ addItem: async () => {
+    if (fail) throw new Error('boom');
+    return row('m');
+  } });
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    await act(async () => { submit().props.onPress(); });
+    fail = true;
+    act(() => input().props.onChangeText('Eggs'));
+    await act(async () => { submit().props.onPress(); });
+    assert.deepEqual(focusCalls, []);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('Add is disabled without a household', () => {
+  const { renderer, submit } = renderAdd({ householdId: null });
+  try { assert.equal(submit().props.disabled, true); } finally { act(() => renderer.unmount()); }
+});
+
+test('keyboard submit without a household does not add', async () => {
+  const calls = [];
+  const { renderer, input } = renderAdd({ householdId: null, addItem: async arg => { calls.push(arg); return row('m'); } });
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    await act(async () => { input().props.onSubmitEditing(); });
+    assert.deepEqual(calls, []);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('the add field limits the name length like the edit modal', () => {
+  const { renderer, input } = renderAdd({});
+  try { assert.equal(input().props.maxLength, 120); } finally { act(() => renderer.unmount()); }
+});
+
+test('the add bar shows with items and empty, not in the error or loading states', () => {
+  for (const state of [{ items: [row('a')] }, {}]) {
+    const { renderer, input } = renderAdd(state);
+    try { assert.equal(input().props.testID, 'shopping-add-input'); } finally { act(() => renderer.unmount()); }
+  }
+  for (const state of [{ error: 'err_load_shopping' }, { loading: true }]) {
+    const { renderer } = renderAdd(state);
+    try { assert.equal(renderer.root.findAllByType('Input').length, 0); } finally { act(() => renderer.unmount()); }
+  }
+});
+
+test('the list keeps the first tap with the keyboard open', () => {
+  const { renderer } = renderAdd({ items: [row('a')] });
+  try {
+    assert.equal(renderer.root.findByType('SectionList').props.keyboardShouldPersistTaps, 'handled');
+  } finally { act(() => renderer.unmount()); }
+});
+
+// ---- Complete and reopen ----
+function renderToggle(state) {
+  const r = renderAdd(state);
+  const rowProps = item => r.renderer.root.findByType('SectionList').props.renderItem({ item }).props;
+  const alerts = () => r.renderer.root.findAll(n => n.props.testID === 'shopping-action-error');
+  return { ...r, rowProps, alerts };
+}
+
+test('tapping an open item\'s circle completes it once even on a double tap', async () => {
+  const calls = []; const d = deferred();
+  const item = row('1');
+  const { renderer, rowProps, alerts } = renderToggle({ items: [item], completeItem: id => { calls.push(id); return d.promise; } });
+  try {
+    act(() => { rowProps(item).onToggle(); rowProps(item).onToggle(); });
+    assert.deepEqual(calls, ['1']);
+    assert.equal(alerts().length, 0);
+    assert.equal(rowProps(item).pending, true);
+    await act(async () => { d.resolve(); await d.promise; });
+    assert.equal(rowProps(item).pending, false);
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('tapping a completed item\'s circle reopens it', async () => {
+  const calls = [];
+  const item = done('1', '2026-01-02');
+  const { renderer, rowProps } = renderToggle({ items: [item],
+    completeItem: async () => { calls.push('complete'); }, reopenItem: async id => { calls.push(`reopen:${id}`); } });
+  try {
+    await act(async () => { rowProps(item).onToggle(); });
+    assert.deepEqual(calls, ['reopen:1']);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a failed toggle shows the translated error and keeps the list', async () => {
+  let fail = true;
+  const items = [row('1')];
+  const { renderer, rowProps, alerts } = renderToggle({ items, completeItem: async () => {
+    if (fail) throw Object.assign(new Error('gone'), { code: 'PGRST116' });
+  } });
+  try {
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 1);
+    assert.equal(alerts()[0].props.accessibilityRole, 'alert');
+    assert.match(JSON.stringify(alerts()[0].props.children), /err_shopping_missing/);
+    assert.equal(renderer.root.findByType('SectionList').props.sections[0].data[0], items[0]);
+    assert.equal(rowProps(items[0]).pending, false);
+    // A later successful toggle does not hide the failure; only a new start clears it.
+    fail = false;
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a successful add clears a stale toggle error', async () => {
+  const items = [row('1')];
+  const { renderer, rowProps, alerts, input } = renderToggle({ items,
+    completeItem: async () => { throw Object.assign(new Error('gone'), { code: 'PGRST116' }); } });
+  try {
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 1);
+    act(() => input().props.onChangeText('Eggs'));
+    await act(async () => { renderer.root.findByProps({ testID: 'shopping-add-submit' }).props.onPress(); });
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a new toggle start clears the previous toggle error immediately', async () => {
+  const items = [row('1'), row('2')]; const d = deferred();
+  const { renderer, rowProps, alerts } = renderToggle({ items,
+    completeItem: id => { if (id === '1') throw Object.assign(new Error('gone'), { code: 'PGRST116' }); return d.promise; } });
+  try {
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 1);
+    act(() => { rowProps(items[1]).onToggle(); });
+    assert.equal(alerts().length, 0);
+    await act(async () => { d.resolve(); await d.promise; });
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a late success of another toggle does not hide an earlier failure', async () => {
+  const items = [row('a'), row('b')]; const da = deferred(); const db = deferred();
+  const { renderer, rowProps, alerts } = renderToggle({ items,
+    completeItem: id => (id === 'a' ? da.promise : db.promise) });
+  try {
+    act(() => { rowProps(items[1]).onToggle(); rowProps(items[0]).onToggle(); });
+    await act(async () => { da.reject(Object.assign(new Error('gone'), { code: 'PGRST116' })); await da.promise.catch(() => {}); });
+    assert.equal(alerts().length, 1);
+    await act(async () => { db.resolve(); await db.promise; });
+    assert.equal(alerts().length, 1);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a household change clears the toggle error', async () => {
+  const items = [row('1')];
+  const state = { items, householdId: 'h', completeItem: async () => { throw Object.assign(new Error('gone'), { code: 'PGRST116' }); } };
+  const { renderer, rowProps, alerts } = renderToggle(state);
+  try {
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 1);
+    state.householdId = 'h2';
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('pending toggles on different items run independently', async () => {
+  const calls = []; const d1 = deferred(); const d2 = deferred();
+  const a = row('a'); const b = row('b');
+  const { renderer, rowProps } = renderToggle({ items: [a, b],
+    completeItem: id => { calls.push(id); return id === 'a' ? d1.promise : d2.promise; } });
+  try {
+    act(() => { rowProps(a).onToggle(); rowProps(b).onToggle(); });
+    assert.deepEqual(calls, ['a', 'b']);
+    assert.equal(rowProps(a).pending, true);
+    assert.equal(rowProps(b).pending, true);
+    await act(async () => { d1.resolve(); await d1.promise; });
+    assert.equal(rowProps(a).pending, false);
+    assert.equal(rowProps(b).pending, true);
+    await act(async () => { d2.resolve(); await d2.promise; });
+  } finally { act(() => renderer.unmount()); }
+});
+
+// ---- Edit modal navigation ----
+test('pressing a row name opens the edit modal for that item', () => {
+  const item = row('1');
+  const r = renderAdd({ items: [item] });
+  try {
+    pushes.length = 0;
+    const props = r.renderer.root.findByType('SectionList').props.renderItem({ item }).props;
+    act(() => props.onPress());
+    assert.deepEqual(pushes, ['/shopping-item/1']);
+  } finally { act(() => r.renderer.unmount()); }
+});
+
+test('a pending toggle from an obsolete household cannot show an error in the new list', async () => {
+  const d = deferred(); const item = row('old');
+  const state = { householdId: 'h', items: [item], completeItem: () => d.promise };
+  const { renderer, rowProps, alerts } = renderToggle(state);
+  try {
+    act(() => { rowProps(item).onToggle(); });
+    state.householdId = 'h2'; state.items = [row('new', { household_id: 'h2' })];
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    await act(async () => {
+      d.reject(Object.assign(new Error('old permission failure'), { code: '42501' }));
+      await d.promise.catch(() => {});
+    });
+    assert.equal(alerts().length, 0);
+    assert.equal(renderer.root.findByType('SectionList').props.sections[0].data[0].id, 'new');
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a pending add from an obsolete household cannot show an error or block a new add', async () => {
+  const old = deferred(); const current = deferred(); const calls = [];
+  const state = { householdId: 'h', addItem: input => { calls.push(input.name); return old.promise; } };
+  const { renderer, input, submit } = renderAdd(state);
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    act(() => submit().props.onPress());
+    state.householdId = 'h2'; state.addItem = value => { calls.push(value.name); return current.promise; };
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    assert.equal(input().props.value, '');
+    assert.equal(submit().props.loading, false);
+    act(() => input().props.onChangeText('Eggs'));
+    act(() => submit().props.onPress());
+    assert.deepEqual(calls, ['Milk', 'Eggs']);
+    await act(async () => {
+      old.reject(Object.assign(new Error('old duplicate'), { code: '23505' }));
+      await old.promise.catch(() => {});
+    });
+    assert.equal(input().props.error, null);
+    assert.equal(input().props.value, 'Eggs');
+    assert.equal(submit().props.loading, true);
+    await act(async () => { current.resolve(row('e')); await current.promise; });
+    assert.equal(input().props.value, '');
+    assert.equal(submit().props.loading, false);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('returning to a household does not revive an earlier add completion or clear its new draft', async () => {
+  const d = deferred();
+  const state = { householdId: 'h', addItem: () => d.promise };
+  const { renderer, input, submit } = renderAdd(state);
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    act(() => submit().props.onPress());
+    state.householdId = null;
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    state.householdId = 'h';
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    act(() => input().props.onChangeText('Milk'));
+    await act(async () => { d.resolve(row('m')); await d.promise; });
+    assert.equal(input().props.value, 'Milk');
+    assert.equal(submit().props.loading, false);
+  } finally { act(() => renderer.unmount()); }
 });
