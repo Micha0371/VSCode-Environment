@@ -195,9 +195,10 @@ class Jira:
         return result
 
     def safe(self, result):
-        encoded = json.dumps(result, ensure_ascii=False)
+        # ASCII-only JSON (non-ASCII as \u escapes) reads correctly in any console code page.
+        encoded = json.dumps(result)
         for value in sorted(set(self.sensitive), key=len, reverse=True):
-            encoded = encoded.replace(json.dumps(value, ensure_ascii=False)[1:-1], "[REDACTED]")
+            encoded = encoded.replace(json.dumps(value)[1:-1], "[REDACTED]")
         return encoded
 
 
@@ -313,14 +314,58 @@ def validate_creation_relationships(jira, project, fields):
         raise Failure("Parent must be an Epic for a standard issue, or a standard issue for a subtask")
 
 
-def input_fields(filename, create=False):
+def read_input(filename):
+    file = Path(filename)
     try:
-        file = Path(filename)
-        if file.stat().st_size > 100_000:
-            raise ValueError()
-        value = json.loads(file.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        raise Failure("Input must be a UTF-8 JSON file smaller than 100 KB") from None
+        size = file.stat().st_size if file.is_file() else None
+    except OSError:
+        size = None
+    if size is None:
+        raise Failure("Input file not found or not readable")
+    if size > 100_000:
+        raise Failure("Input file exceeds 100 KB")
+    try:
+        return json.loads(file.read_text(encoding="utf-8"))
+    except OSError:
+        raise Failure("Input file not found or not readable") from None
+    except ValueError:
+        raise Failure("Input must be a UTF-8 JSON object") from None
+
+
+def plain_adf(text):
+    return {"type": "doc", "version": 1, "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": line}] if line else []}
+        for line in text.split("\n")]}
+
+
+def adf_text(document):
+    # Comment bodies are read back as plain text: one line per top-level block.
+    if not isinstance(document, dict):
+        return ""
+
+    def text(node):
+        if not isinstance(node, dict):
+            return ""
+        if node.get("type") == "text":
+            return node.get("text") if isinstance(node.get("text"), str) else ""
+        if node.get("type") == "hardBreak":
+            return "\n"
+        return "".join(text(child) for child in node.get("content") or [])
+    return "\n".join(text(block) for block in document.get("content") or [])
+
+
+def comment_input(filename):
+    value = read_input(filename)
+    if not isinstance(value, dict) or set(value) != {"body"}:
+        raise Failure("Comment input must contain only a body; see tools/jira/README.md")
+    body = value["body"]
+    if not isinstance(body, str) or not body.strip() or len(body) > 30000:
+        raise Failure("Comment body must be plain text of 1-30000 characters")
+    return plain_adf(body)
+
+
+def input_fields(filename, create=False):
+    value = read_input(filename)
     allowed = {"summary", "description", "labels"} | ({"issueTypeId", "parentKey", "priorityId"} if create else set())
     if not isinstance(value, dict) or not value or set(value) - allowed:
         raise Failure("Unsupported input fields; see tools/jira/README.md")
@@ -334,9 +379,7 @@ def input_fields(filename, create=False):
     if "description" in value:
         if not isinstance(value["description"], str) or len(value["description"]) > 30000:
             raise Failure("Description must be plain text of at most 30000 characters")
-        result["description"] = {"type": "doc", "version": 1, "content": [
-            {"type": "paragraph", "content": [{"type": "text", "text": line}] if line else []}
-            for line in value["description"].split("\n")]}
+        result["description"] = plain_adf(value["description"])
     if "labels" in value:
         if not isinstance(value["labels"], list) or len(value["labels"]) > 20 or any(
                 not isinstance(label, str) or not re.fullmatch(r"[\w-]{1,100}", label) for label in value["labels"]):
@@ -409,6 +452,24 @@ def execute(args, jira, settings):
         if result.get("key") != key:
             raise Failure("Jira issue identity did not match request")
         return issue_view(result, jira.site)
+    if args.command == "comments":
+        page = jira.call("GET", route + "/comment?orderBy=-created&maxResults=" + str(args.limit))
+        comments = page.get("comments")
+        if not isinstance(comments, list):
+            raise Failure("Invalid comments response")
+        return {"key": key, "total": page.get("total"),
+                "comments": [{"id": c.get("id"), "created": c.get("created"), "body": adf_text(c.get("body"))}
+                             for c in comments if isinstance(c, dict)]}
+    if args.command == "comment":
+        body = comment_input(args.input)
+        if not args.apply:
+            return {"preview": True, "operation": "comment", "key": key, "body": body}
+        result = jira.call("POST", route + "/comment", {"body": body})
+        comment_id = result.get("id") if isinstance(result, dict) else None
+        if not isinstance(comment_id, str) or not re.fullmatch(r"\d{1,20}", comment_id, flags=re.ASCII):
+            raise WriteOutcomeUnknown()
+        return {"commented": key, "commentId": comment_id,
+                "url": jira.site + "/browse/" + key + "?focusedCommentId=" + comment_id}
     if args.command == "update":
         fields = input_fields(args.input)
         if not args.apply:
@@ -441,15 +502,17 @@ def parser():
     listing.add_argument("--status")
     listing.add_argument("--limit", type=int, choices=range(1, 51), default=20)
     listing.add_argument("--page")
-    for name in ["get", "create", "update", "transitions", "transition"]:
+    for name in ["get", "create", "update", "transitions", "transition", "comment", "comments"]:
         command = sub.add_parser(name)
         if name != "create":
             command.add_argument("key")
-        if name in ("create", "update"):
+        if name in ("create", "update", "comment"):
             command.add_argument("--input", required=True)
         if name == "transition":
             command.add_argument("--to", required=True)
-        if name in ("create", "update", "transition"):
+        if name == "comments":
+            command.add_argument("--limit", type=int, choices=range(1, 51), default=10)
+        if name in ("create", "update", "transition", "comment"):
             command.add_argument("--apply", action="store_true", help="Perform the previewed mutation")
     return p
 
