@@ -86,8 +86,9 @@ CI run 43218155689 on fd47ba6 passed all four jobs, including the emulator
 Android job. That run predates the KAN-17 add-error fix and the review
 assertions added to the shopping flow after the phone run (Bread back under
 "To buy" after reopen, Rye bread back after retry, a single Milk after the
-rejected prompt add). An emulator run on the final PR head is still required
-and is recorded here once it passes.
+rejected prompt add). CI run 43300263994 on 0cc3bf0, which includes all of
+them, passed all four jobs, including the emulator Android job. Later commits
+only change documentation.
 
 The low/out prompt itself has no screenshot; its title, its message naming the
 item and each button's outcome are asserted in the flow instead.
