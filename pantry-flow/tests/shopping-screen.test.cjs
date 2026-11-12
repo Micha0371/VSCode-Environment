@@ -92,17 +92,16 @@ function renderAdd(state) {
     if (typeof ref === 'function') ref(handle); else if (ref) ref.current = handle;
     return React.createElement('Input', props);
   });
-  const cleanups = [];
   const { default: Screen } = load('app/(tabs)/shopping.tsx', { ...shared,
     '@/components/Input': { Input: focusStub },
-    'expo-router': { useRouter: () => ({ push: route => pushes.push(route) }), useFocusEffect: effect => { cleanups.push(effect); } },
+    'expo-router': { useRouter: () => ({ push: route => pushes.push(route) }) },
     '@/hooks/useShoppingItems': { useShoppingItems: () => ({ householdId: 'h', items: [], loading: false,
       error: null, retry: () => {}, addItem: async () => row('new'), ...state }) } });
   let renderer;
   act(() => { renderer = create(React.createElement(Screen)); });
   const input = () => renderer.root.findByType('Input');
   const submit = () => renderer.root.findByProps({ testID: 'shopping-add-submit' });
-  return { renderer, input, submit, focusCalls, cleanups };
+  return { renderer, input, submit, focusCalls };
 }
 
 test('adding submits the typed name once, clears the field and keeps focus', async () => {
@@ -140,18 +139,6 @@ test('a rejected add keeps the text and shows the translated error', async () =>
     await act(async () => { submit().props.onPress(); });
     assert.equal(input().props.value, '');
     assert.equal(input().props.error, null);
-  } finally { act(() => renderer.unmount()); }
-});
-
-test('an add still clears the field when focus changes during the request', async () => {
-  const d = deferred();
-  const { renderer, input, submit, cleanups } = renderAdd({ addItem: () => d.promise });
-  try {
-    act(() => input().props.onChangeText('Milk'));
-    act(() => { submit().props.onPress(); });
-    for (const effect of cleanups) { const cleanup = effect(); if (typeof cleanup === 'function') cleanup(); }
-    await act(async () => { d.resolve(row('m')); await d.promise; });
-    assert.equal(input().props.value, '');
   } finally { act(() => renderer.unmount()); }
 });
 
@@ -356,4 +343,66 @@ test('pressing a row name opens the edit modal for that item', () => {
     act(() => props.onPress());
     assert.deepEqual(pushes, ['/shopping-item/1']);
   } finally { act(() => r.renderer.unmount()); }
+});
+
+test('a pending toggle from an obsolete household cannot show an error in the new list', async () => {
+  const d = deferred(); const item = row('old');
+  const state = { householdId: 'h', items: [item], completeItem: () => d.promise };
+  const { renderer, rowProps, alerts } = renderToggle(state);
+  try {
+    act(() => { rowProps(item).onToggle(); });
+    state.householdId = 'h2'; state.items = [row('new', { household_id: 'h2' })];
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    await act(async () => {
+      d.reject(Object.assign(new Error('old permission failure'), { code: '42501' }));
+      await d.promise.catch(() => {});
+    });
+    assert.equal(alerts().length, 0);
+    assert.equal(renderer.root.findByType('SectionList').props.sections[0].data[0].id, 'new');
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a pending add from an obsolete household cannot show an error or block a new add', async () => {
+  const old = deferred(); const current = deferred(); const calls = [];
+  const state = { householdId: 'h', addItem: input => { calls.push(input.name); return old.promise; } };
+  const { renderer, input, submit } = renderAdd(state);
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    act(() => submit().props.onPress());
+    state.householdId = 'h2'; state.addItem = value => { calls.push(value.name); return current.promise; };
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    assert.equal(input().props.value, '');
+    assert.equal(submit().props.loading, false);
+    act(() => input().props.onChangeText('Eggs'));
+    act(() => submit().props.onPress());
+    assert.deepEqual(calls, ['Milk', 'Eggs']);
+    await act(async () => {
+      old.reject(Object.assign(new Error('old duplicate'), { code: '23505' }));
+      await old.promise.catch(() => {});
+    });
+    assert.equal(input().props.error, null);
+    assert.equal(input().props.value, 'Eggs');
+    assert.equal(submit().props.loading, true);
+    await act(async () => { current.resolve(row('e')); await current.promise; });
+    assert.equal(input().props.value, '');
+    assert.equal(submit().props.loading, false);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('returning to a household does not revive an earlier add completion or clear its new draft', async () => {
+  const d = deferred();
+  const state = { householdId: 'h', addItem: () => d.promise };
+  const { renderer, input, submit } = renderAdd(state);
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    act(() => submit().props.onPress());
+    state.householdId = null;
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    state.householdId = 'h';
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    act(() => input().props.onChangeText('Milk'));
+    await act(async () => { d.resolve(row('m')); await d.promise; });
+    assert.equal(input().props.value, 'Milk');
+    assert.equal(submit().props.loading, false);
+  } finally { act(() => renderer.unmount()); }
 });

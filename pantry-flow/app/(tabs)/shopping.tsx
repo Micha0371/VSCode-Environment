@@ -11,6 +11,14 @@ import { SHOPPING_NAME_MAX, shoppingErrorKey, splitShoppingItems, type ShoppingI
 import { colors, spacing, typography } from '@/lib/theme';
 
 export default function ShoppingScreen() {
+  const { householdId } = useShoppingItems();
+  // Local drafts, locks and feedback belong to one household visit. Remounting
+  // also makes pending callbacks from an earlier visit fail the mounted guard,
+  // including when the household changes away and then back to the same ID.
+  return <HouseholdShoppingScreen key={householdId ?? 'guest'} />;
+}
+
+function HouseholdShoppingScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { householdId, items, loading, error, retry, addItem, completeItem, reopenItem } = useShoppingItems();
@@ -45,9 +53,6 @@ export default function ShoppingScreen() {
       if (mounted.current) setBusy(false);
     }
   }, [addItem, householdId, name, t]);
-
-  // The toggle error belongs to one household's list.
-  useEffect(() => { setActionError(null); }, [householdId]);
 
   // Per-item lock: the ref stops a second synchronous tap before the provider is called;
   // the mirrored state drives each row's pending prop.
