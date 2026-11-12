@@ -35,6 +35,7 @@ export function ShoppingItem({ item, onToggle, onPress, pending }: Props) {
       <Pressable
         onPress={onPress}
         disabled={!onPress}
+        accessibilityRole={onPress ? 'button' : undefined}
         style={({ pressed }) => [styles.nameWrap, pressed && styles.pressed]}
         testID={`shopping-item-${item.id}`}
       >

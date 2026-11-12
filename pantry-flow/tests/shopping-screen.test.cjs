@@ -7,7 +7,8 @@ const theme = load('lib/theme.ts');
 const native = { Text: 'Text', View: 'View', ActivityIndicator: 'Spinner', SectionList: 'SectionList',
   Pressable: 'Pressable', StyleSheet: { create: styles => styles } };
 const t = key => key;
-const shared = { 'react-native': native, '@/lib/theme': theme, '@expo/vector-icons': { Ionicons: 'Icon' },
+const pushes = [];
+const shared = { 'expo-router': { useRouter: () => ({ push: route => pushes.push(route) }) }, 'react-native': native, '@/lib/theme': theme, '@expo/vector-icons': { Ionicons: 'Icon' },
   '@/lib/i18n': { useTranslation: () => ({ t }) }, '@/components/Button': { Button: 'Button' }, '@/components/Input': { Input: 'Input' },
   '@/components/EmptyState': { EmptyState: 'EmptyState' }, '@/components/ShoppingItem': { ShoppingItem: 'Row' },
   '@/lib/shopping-data': load('lib/shopping-data.ts', { './pagination': load('lib/pagination.ts') }) };
@@ -94,7 +95,7 @@ function renderAdd(state) {
   const cleanups = [];
   const { default: Screen } = load('app/(tabs)/shopping.tsx', { ...shared,
     '@/components/Input': { Input: focusStub },
-    'expo-router': { useFocusEffect: effect => { cleanups.push(effect); } },
+    'expo-router': { useRouter: () => ({ push: route => pushes.push(route) }), useFocusEffect: effect => { cleanups.push(effect); } },
     '@/hooks/useShoppingItems': { useShoppingItems: () => ({ householdId: 'h', items: [], loading: false,
       error: null, retry: () => {}, addItem: async () => row('new'), ...state }) } });
   let renderer;
@@ -275,4 +276,16 @@ test('pending toggles on different items run independently', async () => {
     assert.equal(rowProps(b).pending, true);
     await act(async () => { d2.resolve(); await d2.promise; });
   } finally { act(() => renderer.unmount()); }
+});
+
+// ---- Edit modal navigation ----
+test('pressing a row name opens the edit modal for that item', () => {
+  const item = row('1');
+  const r = renderAdd({ items: [item] });
+  try {
+    pushes.length = 0;
+    const props = r.renderer.root.findByType('SectionList').props.renderItem({ item }).props;
+    act(() => props.onPress());
+    assert.deepEqual(pushes, ['/shopping-item/1']);
+  } finally { act(() => r.renderer.unmount()); }
 });

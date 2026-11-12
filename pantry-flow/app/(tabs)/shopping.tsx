@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, SectionList, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { EmptyState } from '@/components/EmptyState';
 import { ShoppingItem } from '@/components/ShoppingItem';
 import { Button } from '@/components/Button';
@@ -11,6 +12,7 @@ import { colors, spacing, typography } from '@/lib/theme';
 
 export default function ShoppingScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { householdId, items, loading, error, retry, addItem, completeItem, reopenItem } = useShoppingItems();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -132,6 +134,7 @@ export default function ShoppingScreen() {
             <ShoppingItem
               item={item}
               onToggle={() => { void toggle(item); }}
+              onPress={() => router.push(`/shopping-item/${item.id}`)}
               pending={pendingIds.has(item.id)}
             />
           )}

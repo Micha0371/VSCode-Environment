@@ -7,7 +7,7 @@ jest.mock('@/hooks/useShoppingItems', () => ({
     householdId: 'h', items: [], loading: false, error: null, retry: jest.fn(), addItem: mockAddItem,
   }),
 }));
-jest.mock('expo-router', () => ({ useFocusEffect: jest.fn() }));
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn(), useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/lib/i18n', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 import ShoppingScreen from '../../app/(tabs)/shopping';

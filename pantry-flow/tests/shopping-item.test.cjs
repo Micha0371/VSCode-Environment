@@ -64,6 +64,7 @@ test('name press target is disabled without onPress and enabled with it', () => 
   });
   withRow({ item: item(), onPress: () => {} }, root => {
     assert.equal(root.findByProps({ testID: 'shopping-item-i1' }).props.disabled, false);
+    assert.equal(root.findByProps({ testID: 'shopping-item-i1' }).props.accessibilityRole, 'button');
   });
 });
 

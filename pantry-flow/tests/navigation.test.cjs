@@ -58,5 +58,8 @@ test('root layout mounts ShoppingProvider inside the household scope and around 
     const stack = renderer.root.findByType('Stack');
     const chain = ancestorsOf(stack);
     assert.deepEqual(chain.slice(0, 4), ['ShoppingProvider', 'PantryProvider', 'HouseholdProvider', 'AuthProvider']);
+    const modal = renderer.root.findAllByType('StackScreen').find(s => s.props.name === 'shopping-item/[id]');
+    assert.ok(modal, 'shopping edit modal is registered');
+    assert.equal(modal.props.options.presentation, 'modal');
   } finally { if (renderer) act(() => renderer.unmount()); }
 });

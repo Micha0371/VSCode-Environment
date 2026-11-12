@@ -39,6 +39,10 @@ export default function RootLayout() {
                   name="edit-item/[id]"
                   options={{ presentation: 'modal', title: '' }}
                 />
+                <Stack.Screen
+                  name="shopping-item/[id]"
+                  options={{ presentation: 'modal', title: '' }}
+                />
               </Stack>
               </ShoppingProvider>
             </PantryProvider>
