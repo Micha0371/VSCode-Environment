@@ -78,6 +78,39 @@ name: Slice 2 shopping journey
     below:
       id: shopping-section-open
 
+# A fast double tap on a row opens one edit screen (KAN-33): after Cancel, no
+# second edit screen may remain underneath.
+- doubleTapOn:
+    id: shopping-item-.*
+    text: Milk
+- extendedWaitUntil:
+    visible:
+      id: shopping-edit-name
+    timeout: 15000
+- tapOn:
+    id: shopping-edit-cancel
+- extendedWaitUntil:
+    notVisible:
+      id: shopping-edit-name
+    timeout: 5000
+- assertVisible:
+    id: shopping-screen
+- tapOn: Pantry
+- doubleTapOn: Milk
+- extendedWaitUntil:
+    visible:
+      id: edit-item-name
+    timeout: 15000
+- tapOn:
+    id: edit-item-cancel
+- extendedWaitUntil:
+    notVisible:
+      id: edit-item-name
+    timeout: 5000
+- assertVisible:
+    id: pantry-screen
+- tapOn: Shopping
+
 # First tap on Add with the keyboard still open must add, not only dismiss.
 - tapOn:
     id: shopping-add-input
