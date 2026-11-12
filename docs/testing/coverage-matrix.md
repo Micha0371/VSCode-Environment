@@ -83,7 +83,9 @@ filled check, and the rename and completion persisting across the restart.
 Screenshots stay in ignored `.verification`.
 
 CI run 43218155689 on fd47ba6 passed all four jobs, including the emulator
-Android job. The result on the final PR head is a separate required check.
+Android job. The result on the final PR head is a separate required check. It
+also covers two outcome assertions added to the shopping flow after the phone
+run: Bread back under "To buy" after reopen, and Rye bread back after retry.
 
 Two earlier phone runs are not counted.
 - In one, another app came to the foreground during the journey.

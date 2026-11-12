@@ -133,3 +133,9 @@
 - **Xiaomi (HyperOS) prerequisites:** Maestro input needs "USB debugging (Security settings)" turned on, and `adb install` may ask for confirmation on the phone. If the installed `com.pantryflow.test` has a different signature, reinstalling it means uninstalling the test package first; that removes only test data, and I'll ask before doing it.
 - **Wi-Fi ADB:** ping is about 120 ms, and the port changes after a reconnect. If a run is flaky because of the transport, it's rerun, not counted.
 - **KAN-24** ([Slice 2] Extend unit, database, and behavioral regression coverage): its "every criterion has a case or an explicit manual limitation" is checked against the updated matrix at the end of Task 2. Moving it to Done is a separate decision.
+
+## Execution notes
+
+- **Slice 1.1 flow changed after all.** Since step 4 (#33), a save to Low or Out shows the shopping prompt, so the unchanged flow failed at `assertVisible: Out`. `slice-1-1.yaml` now waits for the prompt and taps Not now after those two saves; no assertion was removed.
+- **One application change, on the owner's decision.** The add error stayed under an emptied field. It gets its own failing test and a one-line fix (KAN-17, cc57ad4); the journey asserts the message disappears.
+- **Phone evidence and later assertions.** The counted phone run used the flows at f2fdb97. The task review then added two outcome assertions (Bread back under "To buy" after reopen; Rye bread back after retry), which are checked by the emulator run on the final head.

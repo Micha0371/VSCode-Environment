@@ -155,6 +155,10 @@ name: Slice 2 shopping journey
     notVisible:
       id: shopping-section-completed
     timeout: 15000
+- assertVisible:
+    text: Bread
+    below:
+      id: shopping-section-open
 - tapOn:
     id: shopping-toggle-.*
     text: Bread
@@ -272,6 +276,10 @@ name: Slice 2 shopping journey
       below:
         id: shopping-section-open
     timeout: 15000
+- assertVisible:
+    text: Rye bread
+    below:
+      id: shopping-section-completed
 
 # Another household sees none of it.
 - openLink: pantryflowtest://settings
