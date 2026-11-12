@@ -1,6 +1,7 @@
 export const en = {
   // Navigation
   nav_pantry: 'Pantry',
+  nav_shopping: 'Shopping',
   nav_settings: 'Settings',
 
   // Auth
