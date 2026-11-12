@@ -10,6 +10,9 @@ const maestro = process.env.MAESTRO || 'maestro';
 const maestroDevice = process.env.ANDROID_SERIAL ? ['--device', process.env.ANDROID_SERIAL] : [];
 // A physical-device run installs the ARM64 build; the emulator default is unchanged.
 const apk = process.env.PANTRY_TEST_APK || '.verification/pantryflow-test.apk';
+// Each Maestro start reinstalls its driver by default; on a physical phone every reinstall
+// can raise an install prompt (Xiaomi cancels it when unattended), so keep one install there.
+const testOptions = process.env.PANTRY_TEST_TARGET === 'device' ? ['--no-reinstall-driver'] : [];
 const run = (exe, args, options = {}) => {
   const result = spawnSync(exe, args, { cwd: root, stdio: 'inherit', ...options });
   if (result.error) throw result.error;
@@ -32,19 +35,19 @@ await new Promise((resolve, reject) => {
   fixture('prepare');
   run(adb, ['install', '-r', apk]);
   run(adb, ['logcat', '-c']);
-  run(maestro, [...maestroDevice, 'test', '--format', 'junit', '--output', '.verification/maestro/results.xml',
+  run(maestro, [...maestroDevice, 'test', ...testOptions, '--format', 'junit', '--output', '.verification/maestro/results.xml',
     '--debug-output', '.verification/maestro/debug', '.maestro/slice-1-1.yaml'], {
       shell: process.platform === 'win32',
       env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true' },
     });
   fixture('verify');
-  run(maestro, [...maestroDevice, 'test', '--format', 'junit', '--output', '.verification/maestro/slice-2-shopping.xml',
+  run(maestro, [...maestroDevice, 'test', ...testOptions, '--format', 'junit', '--output', '.verification/maestro/slice-2-shopping.xml',
     '--debug-output', '.verification/maestro/slice-2-shopping', '.maestro/slice-2-shopping.yaml'], {
       shell: process.platform === 'win32',
       env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true' },
     });
   fixture('shopping-verify');
-  const confirmationFlow = (file, callback, report = file) => run(maestro, [...maestroDevice, 'test', '--format', 'junit',
+  const confirmationFlow = (file, callback, report = file) => run(maestro, [...maestroDevice, 'test', ...testOptions, '--format', 'junit',
     '--output', `.verification/maestro/${report}.xml`, '--debug-output', `.verification/maestro/${report}`,
     `.maestro/${file}.yaml`], { shell: process.platform === 'win32',
     env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
