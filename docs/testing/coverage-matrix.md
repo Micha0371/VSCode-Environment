@@ -10,14 +10,16 @@ timestamp writes or requiring permanently non-null authors.
 “Automated” describes executable coverage, not an assertion that an unexecuted
 suite passed. Execution results are recorded separately in README.md.
 
-## Slice 2 database coverage — KAN-7 / KAN-30
+## Slice 2 coverage — KAN-6 (Shopping List MVP)
 
-Contract: [approved D1/D2/D4 model](../planning/slice-2-shopping-database.md).
-These cases cover persistence and the shopping data/provider layer (steps 1 and 2); no shopping screens exist yet.
+Contract: [approved D1/D2/D4 model](../planning/slice-2-shopping-database.md) and
+the D3 prompt in [the implementation plan](../planning/slice-2-implementation-plan.md).
+These cases cover the database, the shopping data/provider layer, the Shopping
+screens, the low/out prompt and the Android journey (steps 1–5).
 
 | ID | Observable outcome | Automated coverage | Limit |
 | --- | --- | --- | --- |
-| SHOP-DB-01 | Blank/null/overlong names fail; edge trim/case uniqueness applies only to open names; internal spaces remain significant | shopping.test.sql and shopping API group in behavior.integration.ts | Translated UI validation arrives with shopping data/UI work |
+| SHOP-DB-01 | Blank/null/overlong names fail; edge trim/case uniqueness applies only to open names; internal spaces remain significant | shopping.test.sql and shopping API group in behavior.integration.ts | Translated validation in the client: SHOP-STATE-01 and SHOP-UI-02 |
 | SHOP-DB-02 | Manual/linked adds share a namespace; duplicate rename/reopen fails without overwriting | pgTAP and ordinary-user API read-back | No merge/rename on conflict |
 | SHOP-DB-03 | Concurrent add, rename, reopen and add-versus-reopen produce one open winner | Separate authenticated clients through real PostgREST | PGlite is not used as concurrency evidence |
 | SHOP-DB-04 | Completion is server-timed, retained and reopenable; edits preserve completion time; shopping does not change pantry state | pgTAP and API full pantry-row comparison | No bulk clear or automatic pantry synchronization |
@@ -25,12 +27,12 @@ These cases cover persistence and the shopping data/provider layer (steps 1 and 
 | SHOP-DB-06 | Cross-household links fail; same-household relink preserves name/completion; deleting the former target preserves the new link, deleting the current target clears only the link | Composite-FK pgTAP and direct API add/update/relink/deletion | Optional links remain inside the same household |
 | SHOP-DB-07 | Members may edit another author's item; author deletion nulls attribution; household deletion cascades rows | API shared-membership fixture plus pgTAP deletion assertions | No invitations or multi-household UI introduced |
 | SHOP-DB-08 | 00004 preserves populated Slice 1.1 rows | PGlite upgrade regression in database.test.cjs | Supplemental actual local PG17 incremental-upgrade probe passed; not production populated-upgrade approval |
-| SHOP-STATE-01 | Shopping names are validated and database/transport errors map to contract keys (duplicate, permission, missing, invalid name, missing pantry link, generic) | shopping-data.test.cjs (unit) | No UI consumes the keys until step 3 |
-| SHOP-STATE-02 | Provider state follows household scope, guards stale and superseded writes, drops a missing row and re-reads, reconciles an add with a concurrent refresh by id, and surfaces mapped errors | shopping-state.test.cjs, list-provider-contract.cjs (unit) | Mounting, screens and the low/out prompt arrive in steps 3a, 3b and 4 |
+| SHOP-STATE-01 | Shopping names are validated and database/transport errors map to contract keys (duplicate, permission, missing, invalid name, missing pantry link, generic) | shopping-data.test.cjs (unit) | The screens show these keys: SHOP-UI-01, SHOP-UI-02 and SHOP-LINK-01 |
+| SHOP-STATE-02 | Provider state follows household scope, guards stale and superseded writes, drops a missing row and re-reads, reconciles an add with a concurrent refresh by id, and surfaces mapped errors | shopping-state.test.cjs, list-provider-contract.cjs (unit) | Mounting and screens: SHOP-UI-01 and SHOP-UI-02; the low/out prompt: SHOP-LINK-01 |
 | SHOP-STATE-03 | Ordinary members persist and read back insert, linked insert, rename, check, reopen and delete; bypassed client checks surface as the contract keys for duplicate, foreign-household, foreign-link, 121-character, hidden-id rename and hidden-id delete; completed names repeat and reopen into an open duplicate fails | shopping-data.integration.ts against real local Auth/PostgREST with ordinary clients | Local stack only; relinking from the client is not exposed in step 2 |
 | SHOP-STATE-04 | Unmount, sign-out, household change and superseded reads do not apply stale results | Provider-level unit tests in shopping-state.test.cjs | Aborting an HTTP request mid-flight is not asserted, since it cannot show whether the server committed |
 | SHOP-UI-01 | The Shopping tab is gated and placed between Pantry and Settings; loading, empty, error/retry and sectioned list states | navigation.test.cjs, shopping-screen.test.cjs (unit) | Android loading-failure/retry, empty and sectioned states: SHOP-E2E-01 |
-| SHOP-UI-02 | Inline add, complete/reopen, rename and confirmed remove with locks, translated errors and keyboard-safe tap settings; an add error clears as soon as the field is edited; a failed complete/reopen error names its item and disappears once that item is removed or changed; household changes reset drafts/locks/feedback and discard obsolete add/toggle completions, including leaving and returning to the same household | shopping-screen.test.cjs, shopping-edit.test.cjs, components/shopping-add.test.tsx | Android first taps with the keyboard open on Add, a row circle, edit Save and Remove; tab-switch draft; confirmed remove: SHOP-E2E-01 |
+| SHOP-UI-02 | Inline add, complete/reopen, rename and confirmed remove with locks, translated errors and keyboard-safe tap settings; an add error clears as soon as the field is edited; a failed complete/reopen error names its item and disappears once that item is removed or changed; household changes reset drafts/locks/feedback and discard obsolete add/toggle completions, including leaving and returning to the same household | shopping-screen.test.cjs, shopping-edit.test.cjs, components/shopping-add.test.tsx; leaving the edit screen during a save or remove abandons its callbacks through the shared `useItemMutation` (mutation.test.cjs) | Android first taps with the keyboard open on Add, a row circle, edit Save and Remove; tab-switch draft; confirmed remove: SHOP-E2E-01. An add error arriving after the field was edited still shows under the new text: KAN-37 (shopping add error shown under text edited while the add was pending) |
 | SHOP-LINK-01 | The low/out prompt fires only on a change to low or out; Yes adds once, linked; No or dismiss adds nothing; the pantry save is never reverted; no prompt, add or failure notice once the edit screen has closed or lost focus | edit-item-prompt.test.cjs, mutation.test.cjs, pantry-shopping.test.cjs (unit) | Android prompt wording, Back as Not now, Not now, Add and the duplicate notice: SHOP-E2E-01. A lost native alert (KAN-36) is not reproducible |
 | SHOP-LINK-02 | Shopping rename/complete/reopen/remove never change pantry data; pantry status changes create no shopping items; open duplicates are rejected with the duplicate key, a completed duplicate does not block, reopening into an open duplicate fails; pantry deletion keeps a named standalone shopping item | pantry-shopping.integration.ts against real local Auth/PostgREST with ordinary clients | Local stack only |
 | SHOP-E2E-01 | Android release-mode test APK: the low/out prompt (Back, Not now, Add, duplicate notice), keyboard-open add, toggle, rename and remove, duplicate message cleared by editing, complete/reopen, remove cancel/confirm, tab-switch draft, cold restart, shopping load failure/retry and another household's empty list | `.maestro/slice-2-shopping.yaml` on real local Auth/PostgREST through the loopback proxy | Emulator in the CI Android job; physical phone results in the evidence section below |
@@ -82,11 +84,11 @@ list after a cold restart. They show the completed item's strikethrough and
 filled check, and the rename and completion persisting across the restart.
 Screenshots stay in ignored `.verification`.
 
-CI run 43218155689 on fd47ba6 passed all four jobs, including the emulator
+[CI run 43218155689](https://github.com/Micha0371/VSCode-Environment/actions/runs/43218155689) on fd47ba6 passed all four jobs, including the emulator
 Android job. That run predates the KAN-17 add-error fix and the review
 assertions added to the shopping flow after the phone run (Bread back under
 "To buy" after reopen, Rye bread back after retry, a single Milk after the
-rejected prompt add). CI run 43300263994 on 0cc3bf0, which includes all of
+rejected prompt add). [CI run 43300263994](https://github.com/Micha0371/VSCode-Environment/actions/runs/43300263994) on 0cc3bf0, which includes all of
 them, passed all four jobs, including the emulator Android job. Later commits
 only change documentation.
 
@@ -103,6 +105,17 @@ Limits: no iOS run. A lost native alert (KAN-36) is still not reproducible.
 No network loss or handover was tested during a mutation. The evidence comes
 from one device over Wi-Fi ADB, against the local stack only, not hosted. It is
 not a production-readiness claim.
+
+Still open beyond Slice 2:
+- Production gates in [production follow-ups](production-follow-ups.md),
+  including PF-IOS-001 (iOS build and physical behavior), PF-AUTH-001 (password
+  recovery), PF-I18N-001 (English/German launch content) and PF-DATA-001
+  (populated-database migration upgrade test).
+- Hosted use of the Slice 2 schema, which follows the tracked hosted migration
+  path (KAN-29, adopt the hosted migration-history baseline).
+- Low-priority follow-ups:
+  - KAN-36 (low/out prompt follow-ups: Save-then-Delete test and lost-alert busy lock);
+  - KAN-37 (shopping add error shown under text edited while the add was pending).
 
 ## Slice 1.1 baseline coverage
 
