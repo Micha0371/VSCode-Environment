@@ -8,7 +8,8 @@ from unittest.mock import patch
 
 import jira
 from urllib import error
-from test_jira import SECRETS, FakeHTTP, IDENTITY, args, client, standard_creation_metadata
+from test_jira import (SECRETS, FakeHTTP, IDENTITY, args, client, standard_creation_metadata,
+                       setUpModule, tearDownModule)
 
 
 class SafetyTests(unittest.TestCase):
@@ -50,7 +51,7 @@ class SafetyTests(unittest.TestCase):
 
     def test_all_command_previews_and_invalid_inputs_send_no_mutations(self):
         with tempfile.TemporaryDirectory() as directory:
-            file = Path(directory) / "issue.json"
+            file = Path(directory) / "issue.local.json"
             for command in ("create", "update", "transition"):
                 for invalid in (False, True):
                     payload = {"summary": "Fixture"}
@@ -89,7 +90,7 @@ class SafetyTests(unittest.TestCase):
                 api.call("PUT", "/issue/PF-1", {"fields": {}})
             self.assertEqual(call.call_count, 1)
         with tempfile.TemporaryDirectory() as directory:
-            file = Path(directory) / "issue.json"
+            file = Path(directory) / "issue.local.json"
             file.write_text('{"summary":"Fixture","issueTypeId":"10"}', encoding="utf-8")
             api, http = client(standard_creation_metadata() + [(201, {"unexpected": SECRETS["token"]})])
             with self.assertRaises(jira.WriteOutcomeUnknown):
