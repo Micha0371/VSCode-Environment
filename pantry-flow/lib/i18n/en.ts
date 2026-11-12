@@ -114,6 +114,8 @@ export const en = {
   shopping_empty_subtitle: 'Add the things you need to buy.',
   shopping_section_open: 'To buy',
   shopping_section_completed: 'Completed',
+  shopping_add_placeholder: 'Add an item',
+  shopping_add_button: 'Add',
 };
 
 export type TranslationKey = keyof typeof en;

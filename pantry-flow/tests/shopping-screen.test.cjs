@@ -2,13 +2,13 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const React = require('react');
 const { create, act } = require('react-test-renderer');
-const { load } = require('./helpers.cjs');
+const { load, deferred } = require('./helpers.cjs');
 const theme = load('lib/theme.ts');
 const native = { Text: 'Text', View: 'View', ActivityIndicator: 'Spinner', SectionList: 'SectionList',
   Pressable: 'Pressable', StyleSheet: { create: styles => styles } };
 const t = key => key;
 const shared = { 'react-native': native, '@/lib/theme': theme, '@expo/vector-icons': { Ionicons: 'Icon' },
-  '@/lib/i18n': { useTranslation: () => ({ t }) }, '@/components/Button': { Button: 'Button' },
+  '@/lib/i18n': { useTranslation: () => ({ t }) }, '@/components/Button': { Button: 'Button' }, '@/components/Input': { Input: 'Input' },
   '@/components/EmptyState': { EmptyState: 'EmptyState' }, '@/components/ShoppingItem': { ShoppingItem: 'Row' },
   '@/lib/shopping-data': load('lib/shopping-data.ts', { './pagination': load('lib/pagination.ts') }) };
 
@@ -79,4 +79,130 @@ test('open items come before completed items, each under its heading', () => {
   try {
     assert.deepEqual(r2.root.findByType('SectionList').props.sections.map(s => s.key), ['open']);
   } finally { act(() => r2.unmount()); }
+});
+
+// ---- Inline add ----
+// Node string stubs: these pin the screen's wiring and contract props. They do not
+// establish real Android keyboard behaviour (Maestro covers that).
+function renderAdd(state) {
+  const focusCalls = [];
+  const focusStub = React.forwardRef((props, ref) => {
+    const handle = { focus: () => focusCalls.push('focus') };
+    if (typeof ref === 'function') ref(handle); else if (ref) ref.current = handle;
+    return React.createElement('Input', props);
+  });
+  const cleanups = [];
+  const { default: Screen } = load('app/(tabs)/shopping.tsx', { ...shared,
+    '@/components/Input': { Input: focusStub },
+    'expo-router': { useFocusEffect: effect => { cleanups.push(effect); } },
+    '@/hooks/useShoppingItems': { useShoppingItems: () => ({ householdId: 'h', items: [], loading: false,
+      error: null, retry: () => {}, addItem: async () => row('new'), ...state }) } });
+  let renderer;
+  act(() => { renderer = create(React.createElement(Screen)); });
+  const input = () => renderer.root.findByType('Input');
+  const submit = () => renderer.root.findByProps({ testID: 'shopping-add-submit' });
+  return { renderer, input, submit, focusCalls, cleanups };
+}
+
+test('adding submits the typed name once, clears the field and keeps focus', async () => {
+  const calls = []; const d = deferred();
+  const { renderer, input, submit, focusCalls } = renderAdd({ addItem: arg => { calls.push(arg); return d.promise; } });
+  try {
+    assert.equal(input().props.testID, 'shopping-add-input');
+    assert.equal(input().props.placeholder, 'shopping_add_placeholder');
+    assert.equal(input().props.submitBehavior, 'submit');
+    assert.equal(submit().props.label, 'shopping_add_button');
+    act(() => input().props.onChangeText(' Milk '));
+    act(() => { submit().props.onPress(); submit().props.onPress(); });
+    assert.deepEqual(calls, [{ name: ' Milk ' }]);
+    await act(async () => { d.resolve(row('m')); await d.promise; });
+    assert.equal(input().props.value, '');
+    act(() => input().props.onChangeText('Eggs'));
+    await act(async () => { input().props.onSubmitEditing(); });
+    assert.deepEqual(calls, [{ name: ' Milk ' }, { name: 'Eggs' }]);
+    assert.deepEqual(focusCalls, []);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a rejected add keeps the text and shows the translated error', async () => {
+  let fail = true;
+  const { renderer, input, submit } = renderAdd({ addItem: async () => {
+    if (fail) throw Object.assign(new Error('dup'), { code: '23505' });
+    return row('m');
+  } });
+  try {
+    act(() => input().props.onChangeText(' Milk '));
+    await act(async () => { submit().props.onPress(); });
+    assert.equal(input().props.value, ' Milk ');
+    assert.equal(input().props.error, 'err_duplicate_shopping_item');
+    fail = false;
+    await act(async () => { submit().props.onPress(); });
+    assert.equal(input().props.value, '');
+    assert.equal(input().props.error, null);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('an add still clears the field when focus changes during the request', async () => {
+  const d = deferred();
+  const { renderer, input, submit, cleanups } = renderAdd({ addItem: () => d.promise });
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    act(() => { submit().props.onPress(); });
+    for (const effect of cleanups) { const cleanup = effect(); if (typeof cleanup === 'function') cleanup(); }
+    await act(async () => { d.resolve(row('m')); await d.promise; });
+    assert.equal(input().props.value, '');
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('text typed while an add is in flight is kept', async () => {
+  const d = deferred();
+  const { renderer, input, submit } = renderAdd({ addItem: () => d.promise });
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    act(() => { submit().props.onPress(); });
+    assert.notEqual(input().props.editable, false);
+    act(() => input().props.onChangeText('Eggs'));
+    assert.notEqual(input().props.editable, false);
+    await act(async () => { d.resolve(row('m')); await d.promise; });
+    assert.equal(input().props.value, 'Eggs');
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('the add bar never moves focus itself', async () => {
+  let fail = false;
+  const { renderer, input, submit, focusCalls } = renderAdd({ addItem: async () => {
+    if (fail) throw new Error('boom');
+    return row('m');
+  } });
+  try {
+    act(() => input().props.onChangeText('Milk'));
+    await act(async () => { submit().props.onPress(); });
+    fail = true;
+    act(() => input().props.onChangeText('Eggs'));
+    await act(async () => { submit().props.onPress(); });
+    assert.deepEqual(focusCalls, []);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('Add is disabled without a household', () => {
+  const { renderer, submit } = renderAdd({ householdId: null });
+  try { assert.equal(submit().props.disabled, true); } finally { act(() => renderer.unmount()); }
+});
+
+test('the add bar shows with items and empty, not in the error or loading states', () => {
+  for (const state of [{ items: [row('a')] }, {}]) {
+    const { renderer, input } = renderAdd(state);
+    try { assert.equal(input().props.testID, 'shopping-add-input'); } finally { act(() => renderer.unmount()); }
+  }
+  for (const state of [{ error: 'err_load_shopping' }, { loading: true }]) {
+    const { renderer } = renderAdd(state);
+    try { assert.equal(renderer.root.findAllByType('Input').length, 0); } finally { act(() => renderer.unmount()); }
+  }
+});
+
+test('the list keeps the first tap with the keyboard open', () => {
+  const { renderer } = renderAdd({ items: [row('a')] });
+  try {
+    assert.equal(renderer.root.findByType('SectionList').props.keyboardShouldPersistTaps, 'handled');
+  } finally { act(() => renderer.unmount()); }
 });
