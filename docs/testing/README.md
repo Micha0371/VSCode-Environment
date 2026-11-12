@@ -82,9 +82,24 @@ npm run test:e2e
 
 The build copies current application sources into ignored `.verification/e2e-app`, generates native Android there, and produces a release-mode, debug-signed `com.pantryflow.test` APK. It never installs over `com.pantryflow.app` or Expo Go. Test-only cleartext transport targets the host's local proxy through emulator address `10.0.2.2:54329`; the proxy forwards only to local Supabase at port 54321. No service key enters the app bundle. This command targets an emulator, not the previously paired physical phone.
 
-The runner creates fresh fixtures, installs that APK, starts a local test proxy, executes Maestro, checks real database outcomes, captures logcat and cleans accounts. The flow covers login, cold restart, background/foreground, keyboard-open category selection, add/duplicate add/duplicate edit, distinct names, cancel/confirm delete, all stock states, account switching, protected deep links, real confirmation-required signup, REST load failure/retry and delayed-save navigation. A direct database assertion verifies exactly one Milk record with Dairy and Low; an empty second household verifies cache isolation. Hook tests retain immediate double-submit coverage.
+The runner creates fresh fixtures, installs that APK, starts a local test proxy, executes Maestro, checks real database outcomes, captures logcat and cleans accounts. The flow covers login, cold restart, background/foreground, keyboard-open category selection, add/duplicate add/duplicate edit, distinct names, cancel/confirm delete, all stock states, account switching, protected deep links, real confirmation-required signup, REST load failure/retry and delayed-save navigation. A direct database assertion verifies exactly one Milk record with Dairy and Low; an empty second household verifies cache isolation. Hook tests retain immediate double-submit coverage. Since Slice 2 step 4, saving Milk as Out or Low offers a shopping add, which this flow answers with Not now.
 
-Maestro favors existing testIDs. Approved English messages are asserted for visible outcomes; native confirmation buttons use Android system IDs. The font/assets regression gate checks logcat for the prior ExpoAsset/AppDirectories failure. Screenshots preserve the native icon result for review; the gate alone does not prove pixel-correct glyph appearance.
+The Slice 2 shopping flow (`.maestro/slice-2-shopping.yaml`) runs next, as the same Alice, after that assertion. It covers:
+- the low/out prompt answered with Android back, Not now and Add, and Add hitting an open duplicate (notice, then the screen closes);
+- inline add tapped with the keyboard open, and the duplicate message;
+- complete, reopen and complete again;
+- rename tapped with the keyboard open, and remove with cancel and then confirm;
+- an unsent draft kept across a tab switch;
+- cold restart;
+- a shopping load failure and retry (proxy hook `fail-shopping-reads`, cleared by `restore`);
+- Bob's empty list.
+
+`e2e-fixtures.ts shopping-verify` then reads back with ordinary clients:
+- Alice's two rows: Milk open and linked to her Milk pantry item, Rye bread completed with no link;
+- her unchanged single Milk pantry row;
+- Bob's empty shopping and pantry lists.
+
+Maestro favors existing testIDs. Approved English messages are asserted for visible outcomes; native confirmation buttons use Android system IDs. In a two-button alert, React Native puts the last button on `android:id/button1` (Add, Remove, OK) and the one before it on `button2` (Not now, Cancel). Alert titles are matched by text, since the AndroidX dialog's title id is `<package>:id/alert_title`, not `android:id/alertTitle`. The font/assets regression gate checks logcat for the prior ExpoAsset/AppDirectories failure. Screenshots preserve the native icon result for review; the gate alone does not prove pixel-correct glyph appearance.
 
 Diagnostics: ignored `.verification/maestro/results.xml`, `debug/`, screenshots and `android-logcat.txt`. Do not upload .env, e2e-env.json, APK/build folders, or local Supabase status keys. Failed cleanup is a failed run. For multiple devices set `ANDROID_SERIAL`; set `ADB` or `MAESTRO` for executable paths if needed.
 
@@ -125,4 +140,4 @@ Local fixture accounts and e2e-env.json were removed. The local test stack and e
 
 ## Physical-device SDK smoke test
 
-Keep the same disposable local stack. After database/API tests finish, set `PANTRY_TEST_TARGET=device` and run `npm run e2e:prepare`; then set `PANTRY_TEST_ARCHITECTURES=arm64-v8a` and run `npm run e2e:build`. Use the ARM64 output `.verification/pantryflow-test-arm64-v8a.apk` with package `com.pantryflow.test`. Start `node scripts/e2e-proxy.cjs` and use `adb -s <device> reverse tcp:54329 tcp:54329` so the APK reaches only local Supabase through `http://127.0.0.1:54329`. Do not expose the stack on the LAN or put admin credentials in the APK. Run `npm run e2e:cleanup` afterward and remove the ADB reverse rule. The emulator defaults remain unchanged. SDK upgrade smoke execution is tracked in [PF-SDK-001](../sdk-upgrade/PF-SDK-001.md).
+Keep the same disposable local stack. After database/API tests finish, set `PANTRY_TEST_TARGET=device` and run `npm run e2e:prepare`; then set `PANTRY_TEST_ARCHITECTURES=arm64-v8a` and run `npm run e2e:build`. Use the ARM64 output `.verification/pantryflow-test-arm64-v8a.apk` with package `com.pantryflow.test`. Use `adb -s <device> reverse tcp:54329 tcp:54329` so the APK reaches only local Supabase through `http://127.0.0.1:54329`. Run the whole journey with `ANDROID_SERIAL=<device>`, `PANTRY_TEST_TARGET=device` and `PANTRY_TEST_APK=.verification/pantryflow-test-arm64-v8a.apk` set, then `npm run test:e2e`; the runner starts the proxy itself. For a single flow, start `node scripts/e2e-proxy.cjs` yourself. Wi-Fi ADB works but drops when the phone sleeps, and its port changes after a reconnect. Xiaomi/HyperOS phones also need "USB debugging (Security settings)" for Maestro input. Do not expose the stack on the LAN or put admin credentials in the APK. Run `npm run e2e:cleanup` afterward and remove the ADB reverse rule. The emulator defaults remain unchanged. SDK upgrade smoke execution is tracked in [PF-SDK-001](../sdk-upgrade/PF-SDK-001.md).
