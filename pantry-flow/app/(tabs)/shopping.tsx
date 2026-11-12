@@ -6,12 +6,12 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { useShoppingItems } from '@/hooks/useShoppingItems';
 import { useTranslation } from '@/lib/i18n';
-import { shoppingErrorKey, splitShoppingItems } from '@/lib/shopping-data';
+import { shoppingErrorKey, splitShoppingItems, type ShoppingItem as ShoppingItemData } from '@/lib/shopping-data';
 import { colors, spacing, typography } from '@/lib/theme';
 
 export default function ShoppingScreen() {
   const { t } = useTranslation();
-  const { householdId, items, loading, error, retry, addItem } = useShoppingItems();
+  const { householdId, items, loading, error, retry, addItem, completeItem, reopenItem } = useShoppingItems();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -41,6 +41,27 @@ export default function ShoppingScreen() {
       if (mounted.current) setBusy(false);
     }
   }, [addItem, name, t]);
+
+  // Per-item lock: the ref stops a second synchronous tap before the provider is called;
+  // the mirrored state drives each row's pending prop.
+  const toggling = useRef(new Set<string>());
+  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const toggle = useCallback(async (item: ShoppingItemData) => {
+    if (toggling.current.has(item.id)) return;
+    toggling.current.add(item.id);
+    setPendingIds(new Set(toggling.current));
+    try {
+      await (item.is_checked ? reopenItem(item.id) : completeItem(item.id));
+      if (mounted.current) setActionError(null);
+    } catch (e) {
+      if (mounted.current) setActionError(t(shoppingErrorKey(e)));
+    } finally {
+      toggling.current.delete(item.id);
+      if (mounted.current) setPendingIds(new Set(toggling.current));
+    }
+  }, [completeItem, reopenItem, t]);
 
   const showLoading = loading && items.length === 0;
 
@@ -95,13 +116,25 @@ export default function ShoppingScreen() {
   return (
     <View style={styles.container} testID="shopping-screen">
       {addBar}
+      {actionError ? (
+        <Text style={styles.actionError} accessibilityRole="alert" testID="shopping-action-error">
+          {actionError}
+        </Text>
+      ) : null}
       {items.length === 0 ? (
         <EmptyState title={t('shopping_empty_title')} subtitle={t('shopping_empty_subtitle')} />
       ) : (
         <SectionList
           sections={sections}
           keyExtractor={(it) => it.id}
-          renderItem={({ item }) => <ShoppingItem item={item} />}
+          extraData={pendingIds}
+          renderItem={({ item }) => (
+            <ShoppingItem
+              item={item}
+              onToggle={() => { void toggle(item); }}
+              pending={pendingIds.has(item.id)}
+            />
+          )}
           renderSectionHeader={({ section }) => (
             <Text style={styles.sectionHeader} testID={`shopping-section-${section.key}`}>
               {section.title}
@@ -134,6 +167,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     paddingVertical: spacing.sm,
     textTransform: 'uppercase',
+  },
+  actionError: {
+    ...typography.small,
+    color: colors.danger,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
   },
   errorText: {
     ...typography.body,

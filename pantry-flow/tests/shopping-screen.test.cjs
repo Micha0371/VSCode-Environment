@@ -206,3 +206,73 @@ test('the list keeps the first tap with the keyboard open', () => {
     assert.equal(renderer.root.findByType('SectionList').props.keyboardShouldPersistTaps, 'handled');
   } finally { act(() => renderer.unmount()); }
 });
+
+// ---- Complete and reopen ----
+function renderToggle(state) {
+  const r = renderAdd(state);
+  const rowProps = item => r.renderer.root.findByType('SectionList').props.renderItem({ item }).props;
+  const alerts = () => r.renderer.root.findAll(n => n.props.testID === 'shopping-action-error');
+  return { ...r, rowProps, alerts };
+}
+
+test('tapping an open item\'s circle completes it once even on a double tap', async () => {
+  const calls = []; const d = deferred();
+  const item = row('1');
+  const { renderer, rowProps, alerts } = renderToggle({ items: [item], completeItem: id => { calls.push(id); return d.promise; } });
+  try {
+    act(() => { rowProps(item).onToggle(); rowProps(item).onToggle(); });
+    assert.deepEqual(calls, ['1']);
+    assert.equal(alerts().length, 0);
+    assert.equal(rowProps(item).pending, true);
+    await act(async () => { d.resolve(); await d.promise; });
+    assert.equal(rowProps(item).pending, false);
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('tapping a completed item\'s circle reopens it', async () => {
+  const calls = [];
+  const item = done('1', '2026-01-02');
+  const { renderer, rowProps } = renderToggle({ items: [item],
+    completeItem: async () => { calls.push('complete'); }, reopenItem: async id => { calls.push(`reopen:${id}`); } });
+  try {
+    await act(async () => { rowProps(item).onToggle(); });
+    assert.deepEqual(calls, ['reopen:1']);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a failed toggle shows the translated error and keeps the list', async () => {
+  let fail = true;
+  const items = [row('1')];
+  const { renderer, rowProps, alerts } = renderToggle({ items, completeItem: async () => {
+    if (fail) throw Object.assign(new Error('gone'), { code: 'PGRST116' });
+  } });
+  try {
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 1);
+    assert.equal(alerts()[0].props.accessibilityRole, 'alert');
+    assert.match(JSON.stringify(alerts()[0].props.children), /err_shopping_missing/);
+    assert.equal(renderer.root.findByType('SectionList').props.sections[0].data[0], items[0]);
+    assert.equal(rowProps(items[0]).pending, false);
+    fail = false;
+    await act(async () => { rowProps(items[0]).onToggle(); });
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('pending toggles on different items run independently', async () => {
+  const calls = []; const d1 = deferred(); const d2 = deferred();
+  const a = row('a'); const b = row('b');
+  const { renderer, rowProps } = renderToggle({ items: [a, b],
+    completeItem: id => { calls.push(id); return id === 'a' ? d1.promise : d2.promise; } });
+  try {
+    act(() => { rowProps(a).onToggle(); rowProps(b).onToggle(); });
+    assert.deepEqual(calls, ['a', 'b']);
+    assert.equal(rowProps(a).pending, true);
+    assert.equal(rowProps(b).pending, true);
+    await act(async () => { d1.resolve(); await d1.promise; });
+    assert.equal(rowProps(a).pending, false);
+    assert.equal(rowProps(b).pending, true);
+    await act(async () => { d2.resolve(); await d2.promise; });
+  } finally { act(() => renderer.unmount()); }
+});

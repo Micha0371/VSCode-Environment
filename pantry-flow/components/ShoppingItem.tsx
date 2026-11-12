@@ -19,6 +19,7 @@ export function ShoppingItem({ item, onToggle, onPress, pending }: Props) {
       <Pressable
         onPress={onToggle}
         disabled={toggleDisabled}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         style={({ pressed }) => [styles.toggle, pressed && styles.pressed]}
         accessibilityRole="checkbox"
         accessibilityState={{ checked, disabled: toggleDisabled }}
