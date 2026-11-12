@@ -104,6 +104,8 @@ name: Slice 2 shopping journey
     id: shopping-add-input
     point: "95%,50%"
 - eraseText
+# Editing the field clears the error; it must not stay under an empty field.
+- assertNotVisible: This item is already on your shopping list.
 - hideKeyboard
 
 # The prompt's add hits the open duplicate: notice, then the screen closes.

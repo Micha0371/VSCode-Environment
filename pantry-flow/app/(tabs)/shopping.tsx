@@ -114,7 +114,8 @@ function HouseholdShoppingScreen() {
         <Input
           testID="shopping-add-input"
           value={name}
-          onChangeText={setName}
+          // The tab stays mounted, so an add error must not outlive the text it was about.
+          onChangeText={(text) => { setName(text); setAddError(null); }}
           placeholder={t('shopping_add_placeholder')}
           maxLength={SHOPPING_NAME_MAX}
           error={addError}
