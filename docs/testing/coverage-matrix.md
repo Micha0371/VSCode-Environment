@@ -56,6 +56,46 @@ PostgreSQL. The one-winner outcomes remain valid in either serialization; the
 partial unique index is the authoritative protection. These cases are not
 evidence that a particular lock interleaving was exercised.
 
+### Slice 2 Android evidence (KAN-25, KAN-26)
+
+On 2026-11-12 one full `npm run test:e2e` run on a physical phone exited 0.
+
+- Device: Xiaomi 23122PCD1G, Android 16 (API 36), arm64-v8a, over Wi-Fi ADB,
+  charging with "Stay awake" on.
+- App: release-mode test APK `com.pantryflow.test` 0.1.0, arm64-v8a, built from
+  cc57ad4 (SHA-256 `2B06821F4670C48772FE4BC4C29CE670E73751A7558DBDEA96788127DC740DF9`).
+  Runner and flows at f2fdb97, which changes no app code. The local stack is
+  reached only through the loopback proxy and `adb reverse`.
+
+| Stage | Result |
+| --- | --- |
+| Slice 1.1 journey, then `e2e-fixtures.ts verify` | Passed (9m 36s), verified |
+| Slice 2 shopping journey (SHOP-E2E-01), then `shopping-verify` (SHOP-E2E-02) | Passed (9m 13s), verified |
+| Confirmation-required registration, PKCE confirmation and restart persistence | Passed |
+| Expired email link recovery and resend, then confirmation | Passed |
+| logcat check for native font/asset failures | Passed |
+| Cleanup of the reserved local test accounts | Done |
+
+The owner and the agent reviewed the four screenshots: the pantry list with
+icons, the confirmation-required screen, the completed shopping state and the
+list after a cold restart. They show the completed item's strikethrough and
+filled check, and the rename and completion persisting across the restart.
+Screenshots stay in ignored `.verification`.
+
+CI run 43218155689 on fd47ba6 passed all four jobs, including the emulator
+Android job. The result on the final PR head is a separate required check.
+
+Two earlier phone runs are not counted.
+- In one, another app came to the foreground during the journey.
+- In the other, Wi-Fi ADB dropped after 11 minutes.
+
+Neither failed inside the app.
+
+Limits: no iOS run. A lost native alert (KAN-36) is still not reproducible.
+No network loss or handover was tested during a mutation. The evidence comes
+from one device over Wi-Fi ADB, against the local stack only, not hosted. It is
+not a production-readiness claim.
+
 ## Slice 1.1 baseline coverage
 
 | ID | Approved behavior / observable outcome | Reused automated coverage | Additional coverage | Manual / deferred limit |
