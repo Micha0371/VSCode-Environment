@@ -78,9 +78,11 @@ test('remove asks for confirmation and deletes only on confirm', async () => {
 test('a failed remove shows the translated error and stays open', async () => {
   const { renderer, log, by, field } = render({ state: { deleteItem: async () => { throw { code: '42501' }; } } });
   try {
+    act(() => field().props.onChangeText('Oat milk'));
     act(() => by('shopping-edit-remove').props.onPress());
     await act(async () => destructive(log).onPress());
     assert.equal(field().props.error, 'err_shopping_permission');
+    assert.equal(field().props.value, 'Oat milk');
     assert.equal(log.back, 0);
   } finally { act(() => renderer.unmount()); }
 });

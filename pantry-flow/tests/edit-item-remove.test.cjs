@@ -15,7 +15,7 @@ const mutation = load('hooks/useItemMutation.ts', { 'expo-router': { useFocusEff
 const t = key => key;
 const item = { id: '1', name: 'Milk', category: 'dairy', location: 'fridge', status: 'in_stock' };
 
-function render({ present = true, deleteResult = deferred() } = {}) {
+function render({ present = true, deleteResult = deferred(), drops = true } = {}) {
   const state = { present, deleted: [], back: 0, alerts: [] };
   const native = { Text: 'Text', View: 'View', ActivityIndicator: 'Spinner', Pressable: 'Pressable',
     ScrollView: 'ScrollView', KeyboardAvoidingView: 'KeyboardAvoidingView', Platform: { OS: 'android' },
@@ -34,8 +34,10 @@ function render({ present = true, deleteResult = deferred() } = {}) {
       getItem: () => (state.present ? item : null), updateItem: async () => item,
       deleteItem: id => {
         state.deleted.push(id);
-        state.present = false;
-        renderer.update(React.createElement(Screen));
+        if (drops) {
+          state.present = false;
+          renderer.update(React.createElement(Screen));
+        }
         return deleteResult.promise;
       } }) },
     '@/hooks/useShoppingItems': { useShoppingItems: () => ({ loading: false, items: [], addItem: async () => ({}) }) },
@@ -74,6 +76,21 @@ test('a pantry delete that fails after the row was dropped shows the missing sta
     await act(async () => { d.reject(new Error('gone')); await pending; });
     assert.equal(state.back, 0);
     assert.equal(missingShown(), true);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a pantry delete that fails for another reason keeps the typed form and shows the error', async () => {
+  const d = deferred();
+  const { renderer, state, missingShown, confirmDelete } = render({ deleteResult: d, drops: false });
+  try {
+    act(() => renderer.root.findByType('Input').props.onChangeText('Oat milk'));
+    const pending = confirmDelete();
+    await act(async () => { d.reject(new Error('network')); await pending; });
+    assert.equal(state.back, 0);
+    assert.equal(missingShown(), false);
+    const input = renderer.root.findByType('Input');
+    assert.equal(input.props.value, 'Oat milk');
+    assert.equal(input.props.error, 'err_delete_item');
   } finally { act(() => renderer.unmount()); }
 });
 
