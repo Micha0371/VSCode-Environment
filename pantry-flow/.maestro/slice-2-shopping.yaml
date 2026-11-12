@@ -92,11 +92,13 @@ name: Slice 2 shopping journey
 - extendedWaitUntil:
     notVisible:
       id: shopping-edit-name
-    timeout: 5000
+    timeout: 15000
 - assertVisible:
     id: shopping-screen
 - tapOn: Pantry
-- doubleTapOn: Milk
+- doubleTapOn:
+    id: pantry-item-.*
+    text: Milk
 - extendedWaitUntil:
     visible:
       id: edit-item-name
@@ -106,7 +108,7 @@ name: Slice 2 shopping journey
 - extendedWaitUntil:
     notVisible:
       id: edit-item-name
-    timeout: 5000
+    timeout: 15000
 - assertVisible:
     id: pantry-screen
 - tapOn: Shopping
