@@ -34,7 +34,7 @@ These cases cover persistence and the shopping data/provider layer (steps 1 and 
 | SHOP-LINK-01 | The low/out prompt fires only on a change to low or out; Yes adds once, linked; No or dismiss adds nothing; the pantry save is never reverted; no prompt, add or failure notice once the edit screen has closed or lost focus | edit-item-prompt.test.cjs, mutation.test.cjs, pantry-shopping.test.cjs (unit) | Android prompt wording, Back as Not now, Not now, Add and the duplicate notice: SHOP-E2E-01. A lost native alert (KAN-36) is not reproducible |
 | SHOP-LINK-02 | Shopping rename/complete/reopen/remove never change pantry data; pantry status changes create no shopping items; open duplicates are rejected with the duplicate key, a completed duplicate does not block, reopening into an open duplicate fails; pantry deletion keeps a named standalone shopping item | pantry-shopping.integration.ts against real local Auth/PostgREST with ordinary clients | Local stack only |
 | SHOP-E2E-01 | Android release-mode test APK: the low/out prompt (Back, Not now, Add, duplicate notice), keyboard-open add, toggle, rename and remove, duplicate message cleared by editing, complete/reopen, remove cancel/confirm, tab-switch draft, cold restart, shopping load failure/retry and another household's empty list | `.maestro/slice-2-shopping.yaml` on real local Auth/PostgREST through the loopback proxy | Emulator in the CI Android job; physical phone results in the evidence section below |
-| SHOP-E2E-02 | The journey's persisted outcome: exact shopping rows, the pantry link, completion state, an unchanged pantry row, and nothing for the other household | `e2e-fixtures.ts shopping-verify` with ordinary clients after the flow | Local stack only |
+| SHOP-E2E-02 | The journey's persisted outcome: exact shopping rows, the pantry link, completion state, the pantry row as last saved, and nothing for the other household | `e2e-fixtures.ts shopping-verify` with ordinary clients after the flow | Local stack only |
 | DB-ENV-02 | Every migration from 00004 on applies without `extensions` on search_path, as in the hosted CLI push session | migration-push-search-path.test.cjs (PGlite, fast job), with a negative control for an unqualified `uuid_generate_v4()` | Models only search_path resolution, not every hosted login-role privilege; added after the 2026-11-11 hosted 00004 push failed and rolled back |
 | DB-ENV-01 | Running PostgreSQL major must be 17 | Separate environment.test.sql, plan(1), in existing database CI job | The identical assertion was demonstrated failing on separate local 15.19; update deliberately with future major upgrades |
 
@@ -83,9 +83,14 @@ filled check, and the rename and completion persisting across the restart.
 Screenshots stay in ignored `.verification`.
 
 CI run 43218155689 on fd47ba6 passed all four jobs, including the emulator
-Android job. The result on the final PR head is a separate required check. It
-also covers two outcome assertions added to the shopping flow after the phone
-run: Bread back under "To buy" after reopen, and Rye bread back after retry.
+Android job. That run predates the KAN-17 add-error fix and the review
+assertions added to the shopping flow after the phone run (Bread back under
+"To buy" after reopen, Rye bread back after retry, a single Milk after the
+rejected prompt add). An emulator run on the final PR head is still required
+and is recorded here once it passes.
+
+The low/out prompt itself has no screenshot; its title, its message naming the
+item and each button's outcome are asserted in the flow instead.
 
 Two earlier phone runs are not counted.
 - In one, another app came to the foreground during the journey.

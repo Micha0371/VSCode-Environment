@@ -10,6 +10,10 @@ const maestro = process.env.MAESTRO || 'maestro';
 const maestroDevice = process.env.ANDROID_SERIAL ? ['--device', process.env.ANDROID_SERIAL] : [];
 // A physical-device run installs the ARM64 build; the emulator default is unchanged.
 const apk = process.env.PANTRY_TEST_APK || '.verification/pantryflow-test.apk';
+// Only a test build may be installed; the production package is never touched.
+if (!/^\.verification\/pantryflow-test[\w-]*\.apk$/.test(apk.replace(/\\/g, '/'))) {
+  throw Error(`PANTRY_TEST_APK must name a .verification/pantryflow-test*.apk build, not ${apk}`);
+}
 // Each Maestro start reinstalls its driver by default; on a physical phone every reinstall
 // can raise an install prompt (Xiaomi cancels it when unattended), so keep one install there.
 const testOptions = process.env.PANTRY_TEST_TARGET === 'device' ? ['--no-reinstall-driver'] : [];

@@ -3,6 +3,8 @@ name: Slice 2 shopping journey
 ---
 # Runs after slice-1-1.yaml and its verify step: Alice owns one pantry item,
 # Milk (Dairy, Low). shopping-verify reads the final rows back afterwards.
+# Clears a fault a failed earlier attempt may have left on a standalone proxy.
+- runScript: helpers/restore.js
 - launchApp:
     clearState: true
 - runFlow:
@@ -92,7 +94,7 @@ name: Slice 2 shopping journey
     id: shopping-add-input
     text: Add an item
 
-# Duplicate of an open item (trimmed, case-insensitive).
+# Duplicate of an open item, matched case-insensitively (trimming is unit-tested).
 - tapOn:
     id: shopping-add-input
 - inputText: ' milk '
@@ -136,6 +138,11 @@ name: Slice 2 shopping journey
 
 # Complete, reopen, complete again. The first toggle is tapped with the keyboard open.
 - tapOn: Shopping
+# The rejected prompt add left a single Milk.
+- assertNotVisible:
+    id: shopping-toggle-.*
+    text: Milk
+    index: 1
 - tapOn:
     id: shopping-add-input
 - tapOn:

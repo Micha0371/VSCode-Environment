@@ -137,5 +137,5 @@
 ## Execution notes
 
 - **Slice 1.1 flow changed after all.** Since step 4 (#33), a save to Low or Out shows the shopping prompt, so the unchanged flow failed at `assertVisible: Out`. `slice-1-1.yaml` now waits for the prompt and taps Not now after those two saves; no assertion was removed.
-- **One application change, on the owner's decision.** The add error stayed under an emptied field. It gets its own failing test and a one-line fix (KAN-17, cc57ad4); the journey asserts the message disappears.
-- **Phone evidence and later assertions.** The counted phone run used the flows at f2fdb97. The task review then added two outcome assertions (Bread back under "To buy" after reopen; Rye bread back after retry), which are checked by the emulator run on the final head.
+- **One application change, on the owner's decision.** The add error stayed under an emptied field. It gets its own failing test and a one-line fix (KAN-17 (implement item creation, editing, completion, reopening and removal interactions), cc57ad4); the journey asserts the message disappears.
+- **Phone evidence and later assertions.** The counted phone run used the flows at f2fdb97. The reviews then added outcome assertions (Bread back under "To buy" after reopen, Rye bread back after retry, a single Milk after the rejected prompt add) and a proxy reset at the start of the flow. These, and the KAN-17 change, still need the emulator run on the final head (Task 1 step 6); its run id is recorded in the coverage matrix once it has passed.

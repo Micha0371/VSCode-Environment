@@ -53,7 +53,7 @@ if (command === 'prepare') {
   assert.equal(pantry.data?.length, 1, 'The shopping journey must not add or remove pantry items');
   const milk = pantry.data![0];
   assert.deepEqual({ name: milk.name, category: milk.category, status: milk.status },
-    { name: 'Milk', category: 'dairy', status: 'low' }, 'Shopping edits must leave the pantry row as the prompt flow saved it');
+    { name: 'Milk', category: 'dairy', status: 'low' }, 'The pantry row must stay as the prompt flow last saved it');
   const shopping = await alice.from('pantry_shopping_items').select('name, is_checked, completed_at, pantry_item_id').order('name');
   assert.equal(shopping.error, null);
   assert.deepEqual(shopping.data?.map(row => row.name), ['Milk', 'Rye bread'], 'Expected exactly Milk and Rye bread');
