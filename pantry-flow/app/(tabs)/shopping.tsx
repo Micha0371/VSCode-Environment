@@ -10,6 +10,8 @@ import { useTranslation } from '@/lib/i18n';
 import { SHOPPING_NAME_MAX, shoppingErrorKey, splitShoppingItems, type ShoppingItem as ShoppingItemData } from '@/lib/shopping-data';
 import { colors, spacing, typography } from '@/lib/theme';
 
+type ToggleFailure = { itemId: string; name: string; updatedAt: string; key: string };
+
 export default function ShoppingScreen() {
   const { householdId } = useShoppingItems();
   // Local drafts, locks and feedback belong to one household visit. Remounting
@@ -25,7 +27,10 @@ function HouseholdShoppingScreen() {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  // A toggle failure belongs to one item: it names the item and is hidden once that item
+  // is removed or changed by a later successful write (updated_at is server-set). A
+  // missing-item failure stays until the next action, because the row is already gone.
+  const [actionError, setActionError] = useState<ToggleFailure | null>(null);
   // Screen-local lock (not useItemMutation): the tab stays mounted, so a success must
   // clear the field regardless of focus. The ref blocks a second synchronous submit.
   const lock = useRef(false);
@@ -66,12 +71,14 @@ function HouseholdShoppingScreen() {
     try {
       await (item.is_checked ? reopenItem(item.id) : completeItem(item.id));
     } catch (e) {
-      if (mounted.current) setActionError(t(shoppingErrorKey(e)));
+      if (mounted.current) {
+        setActionError({ itemId: item.id, name: item.name, updatedAt: item.updated_at, key: shoppingErrorKey(e) });
+      }
     } finally {
       toggling.current.delete(item.id);
       if (mounted.current) setPendingIds(new Set(toggling.current));
     }
-  }, [completeItem, reopenItem, t]);
+  }, [completeItem, reopenItem]);
 
   const showLoading = loading && items.length === 0;
 
@@ -93,6 +100,9 @@ function HouseholdShoppingScreen() {
   }
 
   const { open, completed } = splitShoppingItems(items);
+  const failedItem = actionError ? items.find(it => it.id === actionError.itemId) : undefined;
+  const visibleActionError = actionError && (actionError.key === 'err_shopping_missing'
+    || failedItem?.updated_at === actionError.updatedAt) ? actionError : null;
   const sections = [
     { key: 'open', title: t('shopping_section_open'), data: open },
     { key: 'completed', title: t('shopping_section_completed'), data: completed },
@@ -127,9 +137,9 @@ function HouseholdShoppingScreen() {
   return (
     <View style={styles.container} testID="shopping-screen">
       {addBar}
-      {actionError ? (
+      {visibleActionError ? (
         <Text style={styles.actionError} accessibilityRole="alert" testID="shopping-action-error">
-          {actionError}
+          {`${visibleActionError.name}: ${t(visibleActionError.key)}`}
         </Text>
       ) : null}
       {items.length === 0 ? (

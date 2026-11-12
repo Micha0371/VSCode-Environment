@@ -406,3 +406,58 @@ test('returning to a household does not revive an earlier add completion or clea
     assert.equal(submit().props.loading, false);
   } finally { act(() => renderer.unmount()); }
 });
+
+// A toggle error belongs to the item that failed. It names that item and goes away once
+// the item is removed or changed by a later successful write (updated_at is server-set).
+const alertText = alerts => alerts().map(a => [].concat(a.props.children).join('')).join('|');
+
+test('a toggle error names its item and stays while that item is unchanged', async () => {
+  const milk = row('1', { name: 'Milk' }); const eggs = row('2', { name: 'Eggs' });
+  const state = { items: [milk, eggs], completeItem: async id => { if (id === '1') throw new Error('offline'); } };
+  const { renderer, rowProps, alerts } = renderToggle(state);
+  try {
+    await act(async () => { rowProps(milk).onToggle(); });
+    assert.equal(alertText(alerts), 'Milk: err_save_shopping');
+    state.items = [milk, { ...eggs, name: 'Free-range eggs', updated_at: '2026-01-05' }];
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    assert.equal(alertText(alerts), 'Milk: err_save_shopping');
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a toggle error disappears once its item is removed', async () => {
+  const milk = row('1', { name: 'Milk' });
+  const state = { items: [milk], completeItem: async () => { throw new Error('offline'); } };
+  const { renderer, rowProps, alerts } = renderToggle(state);
+  try {
+    await act(async () => { rowProps(milk).onToggle(); });
+    assert.equal(alerts().length, 1);
+    state.items = [];
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a toggle error disappears once its item is changed by a later write', async () => {
+  const milk = row('1', { name: 'Milk' });
+  const state = { items: [milk], completeItem: async () => { throw new Error('offline'); } };
+  const { renderer, rowProps, alerts } = renderToggle(state);
+  try {
+    await act(async () => { rowProps(milk).onToggle(); });
+    assert.equal(alerts().length, 1);
+    state.items = [{ ...milk, name: 'Oat milk', updated_at: '2026-01-05' }];
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    assert.equal(alerts().length, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a missing-item error stays after the row is dropped and names the item', async () => {
+  const milk = row('1', { name: 'Milk' });
+  const state = { items: [milk, row('2')], completeItem: async () => { throw Object.assign(new Error('gone'), { code: 'PGRST116' }); } };
+  const { renderer, rowProps, alerts } = renderToggle(state);
+  try {
+    await act(async () => { rowProps(milk).onToggle(); });
+    state.items = [row('2')];
+    act(() => renderer.update(React.createElement(renderer.root.type)));
+    assert.equal(alertText(alerts), 'Milk: err_shopping_missing');
+  } finally { act(() => renderer.unmount()); }
+});

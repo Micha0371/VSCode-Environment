@@ -224,6 +224,7 @@ Ruling: the inline add uses a screen-local synchronous lock (a `useRef` boolean,
 ## Notes and rulings carried into execution
 
 - PR #30 review follow-up: the Shopping screen's local state is keyed by household. A household change resets drafts, locks and errors; callbacks from an earlier visit cannot update the current screen, even after returning to the original household. Three regression cases failed before this fix and pass afterward.
+- PR #30 review, ruling 6 follow-up: a failed complete/reopen error is scoped to its item. It names the item, and it is hidden once that item is removed or changed by a later successful write (server-set `updated_at` differs). A missing-item failure stays until the next action, because the provider has already dropped the row. The earlier clears still apply: a new toggle start, a successful add and a household change.
 - The planned focus-change unit test was removed: the screen does not register a focus callback, so the stub exercised no tab switch. Add completion, draft preservation and absence of programmatic focus remain covered. Real tab-switch lifecycle verification is deferred to step 5 and is not counted as automated coverage here.
 
 - KAN-16 and KAN-18 were written before the provider existed. Their "shared shopping provider contract" is `hooks/useShoppingItems.tsx` on `main`. The "KAN-11 operations" that KAN-17 mentions are its operations.
