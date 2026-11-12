@@ -2,7 +2,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const root = path.resolve(__dirname, '..');
+// Metro fails to resolve through the node_modules junction when its target has a
+// lowercase drive letter (a cwd of c:\...), so normalize the drive letter.
+const root = path.resolve(__dirname, '..').replace(/^[a-z](?=:)/, drive => drive.toUpperCase());
 const work = path.join(root, '.verification/e2e-app');
 try {
 const publicEnv = JSON.parse(fs.readFileSync(path.join(root, '.verification/e2e-env.json'), 'utf8'));

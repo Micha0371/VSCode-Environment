@@ -1,0 +1,308 @@
+appId: com.pantryflow.test
+name: Slice 2 shopping journey
+---
+# Runs after slice-1-1.yaml and its verify step: Alice owns one pantry item,
+# Milk (Dairy, Low). shopping-verify reads the final rows back afterwards.
+# Clears a fault a failed earlier attempt may have left on a standalone proxy.
+- runScript: helpers/restore.js
+- launchApp:
+    clearState: true
+- runFlow:
+    file: helpers/login.yaml
+    env:
+      EMAIL: pf.test.alice@example.com
+- assertVisible: Milk
+
+# Low/out prompt, Android back: dismissal acts as Not now.
+- tapOn: Milk
+- tapOn:
+    id: edit-item-status-out
+- tapOn:
+    id: edit-item-save
+- extendedWaitUntil:
+    visible:
+      text: Add to shopping list?
+    timeout: 15000
+- assertVisible:
+    id: android:id/message
+    text: Milk
+- back
+- assertVisible:
+    id: pantry-screen
+- assertVisible: Out
+- tapOn: Shopping
+- assertVisible: Your shopping list is empty
+
+# Not now adds nothing.
+- tapOn: Pantry
+- tapOn: Milk
+- tapOn:
+    id: edit-item-status-low
+- tapOn:
+    id: edit-item-save
+- extendedWaitUntil:
+    visible:
+      text: Add to shopping list?
+    timeout: 15000
+- tapOn:
+    id: android:id/button2
+- assertVisible:
+    id: pantry-screen
+- assertVisible: Low
+- tapOn: Shopping
+- assertVisible: Your shopping list is empty
+
+# Add creates one linked shopping item.
+- tapOn: Pantry
+- tapOn: Milk
+- tapOn:
+    id: edit-item-status-out
+- tapOn:
+    id: edit-item-save
+- extendedWaitUntil:
+    visible:
+      text: Add to shopping list?
+    timeout: 15000
+- tapOn:
+    id: android:id/button1
+- assertVisible:
+    id: pantry-screen
+- assertVisible: Out
+- tapOn: Shopping
+- extendedWaitUntil:
+    visible:
+      id: shopping-section-open
+    timeout: 15000
+- assertVisible:
+    text: Milk
+    below:
+      id: shopping-section-open
+
+# First tap on Add with the keyboard still open must add, not only dismiss.
+- tapOn:
+    id: shopping-add-input
+- inputText: Bread
+- tapOn:
+    id: shopping-add-submit
+- extendedWaitUntil:
+    visible:
+      text: Bread
+      below:
+        id: shopping-section-open
+    timeout: 15000
+- assertVisible:
+    id: shopping-add-input
+    text: Add an item
+
+# Duplicate of an open item, matched case-insensitively (trimming is unit-tested).
+- tapOn:
+    id: shopping-add-input
+- inputText: ' milk '
+- hideKeyboard
+- tapOn:
+    id: shopping-add-submit
+- assertVisible: This item is already on your shopping list.
+- tapOn:
+    id: shopping-add-input
+    point: "95%,50%"
+- eraseText
+# Editing the field clears the error; it must not stay under an empty field.
+- assertNotVisible: This item is already on your shopping list.
+- hideKeyboard
+
+# The prompt's add hits the open duplicate: notice, then the screen closes.
+- tapOn: Pantry
+- tapOn: Milk
+- tapOn:
+    id: edit-item-status-low
+- tapOn:
+    id: edit-item-save
+- extendedWaitUntil:
+    visible:
+      text: Add to shopping list?
+    timeout: 15000
+- tapOn:
+    id: android:id/button1
+- extendedWaitUntil:
+    visible:
+      text: Not added to the shopping list
+    timeout: 15000
+- assertVisible:
+    id: android:id/message
+    text: This item is already on your shopping list.
+- tapOn:
+    id: android:id/button1
+- assertVisible:
+    id: pantry-screen
+- assertVisible: Low
+
+# Complete, reopen, complete again. The first toggle is tapped with the keyboard open.
+- tapOn: Shopping
+# The rejected prompt add left a single Milk (once the list has loaded).
+- extendedWaitUntil:
+    visible:
+      id: shopping-toggle-.*
+      text: Milk
+    timeout: 15000
+- assertNotVisible:
+    id: shopping-toggle-.*
+    text: Milk
+    index: 1
+- tapOn:
+    id: shopping-add-input
+- tapOn:
+    id: shopping-toggle-.*
+    text: Bread
+- extendedWaitUntil:
+    visible:
+      text: Bread
+      below:
+        id: shopping-section-completed
+    timeout: 15000
+- takeScreenshot: .verification/maestro/shopping-completed-state
+- tapOn:
+    id: shopping-toggle-.*
+    text: Bread
+- extendedWaitUntil:
+    notVisible:
+      id: shopping-section-completed
+    timeout: 15000
+- assertVisible:
+    text: Bread
+    below:
+      id: shopping-section-open
+- tapOn:
+    id: shopping-toggle-.*
+    text: Bread
+- extendedWaitUntil:
+    visible:
+      id: shopping-section-completed
+    timeout: 15000
+
+# Rename in the edit modal, Save tapped with the keyboard open.
+- tapOn:
+    id: shopping-item-.*
+    text: Bread
+- tapOn:
+    id: shopping-edit-name
+    point: "95%,50%"
+- eraseText
+- inputText: Rye bread
+- tapOn:
+    id: shopping-edit-save
+- extendedWaitUntil:
+    visible:
+      id: shopping-screen
+    timeout: 15000
+- assertVisible:
+    text: Rye bread
+    below:
+      id: shopping-section-completed
+
+# Remove: cancel keeps it, confirm removes it.
+- tapOn:
+    id: shopping-add-input
+- inputText: Eggs
+- tapOn:
+    id: shopping-add-submit
+- extendedWaitUntil:
+    visible:
+      id: shopping-item-.*
+      text: Eggs
+    timeout: 15000
+- hideKeyboard
+- tapOn:
+    id: shopping-item-.*
+    text: Eggs
+# Remove is tapped with the keyboard open.
+- tapOn:
+    id: shopping-edit-name
+- tapOn:
+    id: shopping-edit-remove
+- tapOn:
+    id: android:id/button2
+- assertVisible:
+    id: shopping-edit-remove
+- tapOn:
+    id: shopping-edit-remove
+- tapOn:
+    id: android:id/button1
+- extendedWaitUntil:
+    visible:
+      id: shopping-screen
+    timeout: 15000
+- assertNotVisible: Eggs
+
+# Switching tabs keeps an unsent draft.
+- tapOn:
+    id: shopping-add-input
+- inputText: Cheese
+- hideKeyboard
+- tapOn: Pantry
+- assertVisible:
+    id: pantry-screen
+- tapOn: Shopping
+- assertVisible:
+    id: shopping-add-input
+    text: Cheese
+- tapOn:
+    id: shopping-add-input
+    point: "95%,50%"
+- eraseText
+- hideKeyboard
+
+# Cold restart restores the list.
+- stopApp
+- launchApp:
+    stopApp: false
+- tapOn: Shopping
+- extendedWaitUntil:
+    visible:
+      text: Milk
+      below:
+        id: shopping-section-open
+    timeout: 15000
+- assertVisible:
+    text: Rye bread
+    below:
+      id: shopping-section-completed
+- takeScreenshot: .verification/maestro/shopping-after-restart
+
+# A failed shopping load shows the translated error and recovers on retry.
+- runScript: helpers/fail-shopping-reads.js
+- stopApp
+- launchApp:
+    stopApp: false
+- tapOn: Shopping
+- extendedWaitUntil:
+    visible: Could not load the shopping list.
+    timeout: 15000
+- assertVisible:
+    id: shopping-retry
+- runScript: helpers/restore.js
+- tapOn:
+    id: shopping-retry
+- extendedWaitUntil:
+    visible:
+      text: Milk
+      below:
+        id: shopping-section-open
+    timeout: 15000
+- assertVisible:
+    text: Rye bread
+    below:
+      id: shopping-section-completed
+
+# Another household sees none of it.
+- openLink: pantryflowtest://settings
+- tapOn:
+    id: settings-signout
+- assertVisible:
+    id: login-submit
+- runFlow:
+    file: helpers/login.yaml
+    env:
+      EMAIL: pf.test.bob@example.com
+- tapOn: Shopping
+- assertVisible: Your shopping list is empty
+- assertNotVisible: Rye bread

@@ -44,6 +44,33 @@ if (command === 'prepare') {
   assert.ok(registration, 'Android registration must reach real local Auth');
   assert.ok(!registration.email_confirmed_at, 'Registration requires confirmation');
   console.log('Verified Android database outcomes, household isolation and confirmation-required registration.');
+} else if (command === 'shopping-verify') {
+  // Ordinary clients only: what each household member can actually read.
+  const alice = stack.client();
+  assert.equal((await alice.auth.signInWithPassword({ email: emails[0], password })).error, null);
+  const pantry = await alice.from('pantry_items').select('id, name, category, status');
+  assert.equal(pantry.error, null);
+  assert.equal(pantry.data?.length, 1, 'The shopping journey must not add or remove pantry items');
+  const milk = pantry.data![0];
+  assert.deepEqual({ name: milk.name, category: milk.category, status: milk.status },
+    { name: 'Milk', category: 'dairy', status: 'low' }, 'The pantry row must stay as the prompt flow last saved it');
+  const shopping = await alice.from('pantry_shopping_items').select('name, is_checked, completed_at, pantry_item_id').order('name');
+  assert.equal(shopping.error, null);
+  assert.deepEqual(shopping.data?.map(row => row.name), ['Milk', 'Rye bread'], 'Expected exactly Milk and Rye bread');
+  const [linked, bread] = shopping.data!;
+  assert.equal(linked.pantry_item_id, milk.id, 'The prompt add must link Milk to its pantry item');
+  assert.equal(linked.is_checked, false);
+  assert.equal(linked.completed_at, null);
+  assert.equal(bread.pantry_item_id, null, 'A manual add has no pantry link');
+  assert.equal(bread.is_checked, true);
+  assert.ok(bread.completed_at, 'A completed item carries its server-set completion time');
+  const bob = stack.client();
+  assert.equal((await bob.auth.signInWithPassword({ email: emails[1], password })).error, null);
+  assert.deepEqual((await bob.from('pantry_shopping_items').select('id')).data, []);
+  assert.deepEqual((await bob.from('pantry_items').select('id')).data, []);
+  await alice.auth.signOut();
+  await bob.auth.signOut();
+  console.log('Verified Android shopping outcomes, the pantry link, completion state and household isolation.');
 } else if (command === 'confirmation-first') {
   const state = JSON.parse(await fs.readFile(path.join(appRoot, '.verification/confirmation-state.json'), 'utf8'));
   const location = await openVerification(await confirmationLink(emails[3], new Set(state.previousIds)));
@@ -91,7 +118,7 @@ if (command === 'prepare') {
   await fs.rm(path.join(appRoot, '.verification/e2e-env.json'), { force: true });
   await fs.rm(path.join(appRoot, '.verification/confirmation-state.json'), { force: true });
   console.log('Removed only reserved local test accounts and their cascading household data.');
-} else throw new Error('Expected prepare, verify or cleanup');
+} else throw new Error('Expected prepare, verify, shopping-verify or cleanup');
 
 }
 main().catch(error => { console.error(error.message); process.exitCode = 1; });

@@ -1,14 +1,19 @@
 // Local test-only transport: real Auth/PostgREST with controllable pantry faults.
 // No production imports, hosted URLs, tokens, or database bypass.
 const http = require('node:http');
+// Port overrides exist only for the proxy's own unit test; e2e runs use the defaults.
+const listenPort = Number(process.env.PANTRY_PROXY_PORT ?? 54329);
+const upstreamPort = Number(process.env.PANTRY_PROXY_UPSTREAM_PORT ?? 54321);
 let failReads = false;
+let failShoppingReads = false;
 let delayWrites = false;
 let pendingWrites = 0;
 let writeStarted = false;
 const server = http.createServer(async (req, res) => {
   if (req.url.startsWith('/__test/')) {
     if (req.url === '/__test/fail-reads') failReads = true;
-    else if (req.url === '/__test/restore') { failReads = false; delayWrites = false; }
+    else if (req.url === '/__test/fail-shopping-reads') failShoppingReads = true;
+    else if (req.url === '/__test/restore') { failReads = false; failShoppingReads = false; delayWrites = false; }
     else if (req.url === '/__test/delay-write') { delayWrites = true; writeStarted = false; }
     else if (req.url === '/__test/wait-write') await new Promise(resolve => setTimeout(resolve, 500));
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -18,6 +23,10 @@ const server = http.createServer(async (req, res) => {
   if (failReads && pantry && req.method === 'GET') {
     res.writeHead(503, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ message: 'Intentional local pantry read failure' })); return;
+  }
+  if (failShoppingReads && req.url.startsWith('/rest/v1/pantry_shopping_items') && req.method === 'GET') {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ message: 'Intentional local shopping read failure' })); return;
   }
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
@@ -32,8 +41,8 @@ const server = http.createServer(async (req, res) => {
   }
   const delayed = delayWrites && pantry && req.method === 'PATCH';
   if (delayed) { writeStarted = true; pendingWrites++; await new Promise(resolve => setTimeout(resolve, 30000)); }
-  const upstream = http.request({ hostname: '127.0.0.1', port: 54321, path: req.url, method: req.method,
-    headers: { ...req.headers, host: '127.0.0.1:54321' } }, response => {
+  const upstream = http.request({ hostname: '127.0.0.1', port: upstreamPort, path: req.url, method: req.method,
+    headers: { ...req.headers, host: `127.0.0.1:${upstreamPort}` } }, response => {
     res.writeHead(response.statusCode, response.headers);
     response.pipe(res);
     response.on('end', () => {
@@ -45,5 +54,5 @@ const server = http.createServer(async (req, res) => {
   upstream.on('error', () => { res.writeHead(502); res.end('Local Supabase unavailable'); });
   upstream.end(body);
 });
-server.listen(54329, '127.0.0.1', () => process.send?.('ready'));
+server.listen(listenPort, '127.0.0.1', () => process.send?.({ ready: true, port: server.address().port }));
 process.on('SIGTERM', () => server.close(() => process.exit()));

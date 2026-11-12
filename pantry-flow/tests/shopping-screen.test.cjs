@@ -142,6 +142,22 @@ test('a rejected add keeps the text and shows the translated error', async () =>
   } finally { act(() => renderer.unmount()); }
 });
 
+test('editing the field after a rejected add clears the error', async () => {
+  const { renderer, input, submit } = renderAdd({ addItem: async () => {
+    throw Object.assign(new Error('dup'), { code: '23505' });
+  } });
+  try {
+    for (const edit of ['', ' Milk', 'Oat milk']) {
+      act(() => input().props.onChangeText(' Milk '));
+      await act(async () => { submit().props.onPress(); });
+      assert.equal(input().props.error, 'err_duplicate_shopping_item');
+      act(() => input().props.onChangeText(edit));
+      assert.equal(input().props.value, edit);
+      assert.equal(input().props.error, null, `editing to ${JSON.stringify(edit)} clears the error`);
+    }
+  } finally { act(() => renderer.unmount()); }
+});
+
 test('text typed while an add is in flight is kept', async () => {
   const d = deferred();
   const { renderer, input, submit } = renderAdd({ addItem: () => d.promise });

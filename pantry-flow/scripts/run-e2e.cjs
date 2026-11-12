@@ -8,6 +8,15 @@ const adb = process.env.ADB || 'adb';
 const maestro = process.env.MAESTRO || 'maestro';
 // Maestro does not use ADB's ANDROID_SERIAL to select its own driver target.
 const maestroDevice = process.env.ANDROID_SERIAL ? ['--device', process.env.ANDROID_SERIAL] : [];
+// A physical-device run installs the ARM64 build; the emulator default is unchanged.
+const apk = process.env.PANTRY_TEST_APK || '.verification/pantryflow-test.apk';
+// Only a test build may be installed; the production package is never touched.
+if (!/^\.verification\/pantryflow-test[\w-]*\.apk$/.test(apk.replaceAll('\\', '/'))) {
+  throw new Error(`PANTRY_TEST_APK must name a .verification/pantryflow-test*.apk build, not ${apk}`);
+}
+// Each Maestro start reinstalls its driver by default; on a physical phone every reinstall
+// can raise an install prompt (Xiaomi cancels it when unattended), so keep one install there.
+const testOptions = process.env.PANTRY_TEST_TARGET === 'device' ? ['--no-reinstall-driver'] : [];
 const run = (exe, args, options = {}) => {
   const result = spawnSync(exe, args, { cwd: root, stdio: 'inherit', ...options });
   if (result.error) throw result.error;
@@ -28,15 +37,21 @@ await new Promise((resolve, reject) => {
   // prepare resets only the four reserved fixture accounts, not the database.
   // Build before invocation using e2e:prepare + e2e:build, then fresh fixtures here.
   fixture('prepare');
-  run(adb, ['install', '-r', '.verification/pantryflow-test.apk']);
+  run(adb, ['install', '-r', apk]);
   run(adb, ['logcat', '-c']);
-  run(maestro, [...maestroDevice, 'test', '--format', 'junit', '--output', '.verification/maestro/results.xml',
+  run(maestro, [...maestroDevice, 'test', ...testOptions, '--format', 'junit', '--output', '.verification/maestro/results.xml',
     '--debug-output', '.verification/maestro/debug', '.maestro/slice-1-1.yaml'], {
       shell: process.platform === 'win32',
       env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true' },
     });
   fixture('verify');
-  const confirmationFlow = (file, callback, report = file) => run(maestro, [...maestroDevice, 'test', '--format', 'junit',
+  run(maestro, [...maestroDevice, 'test', ...testOptions, '--format', 'junit', '--output', '.verification/maestro/slice-2-shopping.xml',
+    '--debug-output', '.verification/maestro/slice-2-shopping', '.maestro/slice-2-shopping.yaml'], {
+      shell: process.platform === 'win32',
+      env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true' },
+    });
+  fixture('shopping-verify');
+  const confirmationFlow = (file, callback, report = file) => run(maestro, [...maestroDevice, 'test', ...testOptions, '--format', 'junit',
     '--output', `.verification/maestro/${report}.xml`, '--debug-output', `.verification/maestro/${report}`,
     `.maestro/${file}.yaml`], { shell: process.platform === 'win32',
     env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: '1', MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',

@@ -99,6 +99,13 @@ name: Slice 1.1 critical behavioral journey
     id: edit-item-status-out
 - tapOn:
     id: edit-item-save
+- extendedWaitUntil:
+    visible:
+      text: Add to shopping list?
+    timeout: 15000
+# Since Slice 2 step 4 a save to low or out offers a shopping add; Not now.
+- tapOn:
+    id: android:id/button2
 - assertVisible: Out
 - tapOn: Milk
 - tapOn:
@@ -111,6 +118,13 @@ name: Slice 1.1 critical behavioral journey
     id: edit-item-status-low
 - tapOn:
     id: edit-item-save
+- extendedWaitUntil:
+    visible:
+      text: Add to shopping list?
+    timeout: 15000
+# Since Slice 2 step 4 a save to low or out offers a shopping add; Not now.
+- tapOn:
+    id: android:id/button2
 - assertVisible: Low
 # Reproduce the prior abandoned-save defect through real delayed HTTP.
 - runScript: helpers/delay-write.js
