@@ -137,3 +137,48 @@ class InputAndOutputTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HardeningTests(unittest.TestCase):
+    def test_input_with_a_utf8_byte_order_mark_is_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / "bom.json"
+            file.write_bytes(b"\xef\xbb\xbf" + json.dumps({"body": "Done", "summary": "x"}).encode())
+            self.assertEqual(jira.input_fields(write(directory, {"summary": "x"}))["summary"], "x")
+            file.write_bytes(b"\xef\xbb\xbf" + b'{"summary": "x"}')
+            self.assertEqual(jira.input_fields(str(file))["summary"], "x")
+            file.write_bytes(b"\xef\xbb\xbf" + b'{"body": "Done"}')
+            self.assertEqual(jira.comment_input(str(file))["content"][0]["content"][0]["text"], "Done")
+
+    def test_deeply_nested_input_gets_the_fixed_json_message(self):
+        with tempfile.TemporaryDirectory() as directory:
+            nested = write(directory, '{"body": ' + "[" * 40_000 + "]" * 40_000 + "}", "deep.json")
+            with self.assertRaisesRegex(jira.Failure, "^Input must be a UTF-8 JSON object$"):
+                jira.comment_input(nested)
+
+    def test_comment_text_keeps_lists_tables_mentions_and_tolerates_bad_nodes(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "mention", "attrs": {"text": "@Alex"}},
+                                              {"type": "text", "text": " please check "},
+                                              {"type": "emoji", "attrs": {"text": ":)"}}]},
+            {"type": "bulletList", "content": [
+                {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "a"}]}]},
+                {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "b"}]}]}]},
+            {"type": "table", "content": [{"type": "tableRow", "content": [
+                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "c1"}]}]},
+                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "c2"}]}]}]}]},
+            {"type": "paragraph", "content": 5}, "not a node", None]}
+        self.assertEqual(jira.adf_text(doc), "@Alex please check :)\na\nb\nc1\nc2\n\n\n")
+        deep = {"type": "text", "text": "hidden"}
+        for _ in range(200):
+            deep = {"type": "paragraph", "content": [deep]}
+        self.assertEqual(jira.adf_text({"type": "doc", "content": [deep]}), "")
+
+    def test_comments_only_pass_through_well_typed_values(self):
+        page = {"total": "lots", "comments": [{"id": "../x", "created": 5, "body": None},
+                                              {"id": "12", "created": "2026-11-12T01:00:00.000+0100", "body": None}]}
+        api, _ = client([(200, IDENTITY), (200, page)])
+        result = jira.execute(args("comments", key="PF-1", limit=10), api, {"project": "PF"})
+        self.assertEqual(result["total"], None)
+        self.assertEqual(result["comments"], [{"id": None, "created": None, "body": ""},
+                                              {"id": "12", "created": "2026-11-12T01:00:00.000+0100", "body": ""}])

@@ -128,6 +128,8 @@ class HTTP:
                 raise RateLimited(seconds) from None
             # Never echo a server error body, request headers or arbitrary exception.
             return status, {}
+        except RecursionError:
+            raise Failure("Jira response was nested too deeply to read") from None
         except (error.URLError, TimeoutError, OSError, ValueError):
             raise Failure("Jira request failed; check network, TLS and configuration") from None
 
@@ -325,10 +327,11 @@ def read_input(filename):
     if size > 100_000:
         raise Failure("Input file exceeds 100 KB")
     try:
-        return json.loads(file.read_text(encoding="utf-8"))
+        # utf-8-sig also accepts the byte-order mark Windows PowerShell 5.1 writes.
+        return json.loads(file.read_text(encoding="utf-8-sig"))
     except OSError:
         raise Failure("Input file not found or not readable") from None
-    except ValueError:
+    except (ValueError, RecursionError):
         raise Failure("Input must be a UTF-8 JSON object") from None
 
 
@@ -338,20 +341,31 @@ def plain_adf(text):
         for line in text.split("\n")]}
 
 
-def adf_text(document):
-    # Comment bodies are read back as plain text: one line per top-level block.
-    if not isinstance(document, dict):
-        return ""
+# Containers whose children are blocks; their children are read back on separate lines.
+ADF_BLOCK_CONTAINERS = {"doc", "bulletList", "orderedList", "listItem", "blockquote", "panel", "table",
+                        "tableRow", "tableCell", "tableHeader", "expand", "nestedExpand",
+                        "layoutSection", "layoutColumn"}
 
-    def text(node):
-        if not isinstance(node, dict):
-            return ""
-        if node.get("type") == "text":
-            return node.get("text") if isinstance(node.get("text"), str) else ""
-        if node.get("type") == "hardBreak":
-            return "\n"
-        return "".join(text(child) for child in node.get("content") or [])
-    return "\n".join(text(block) for block in document.get("content") or [])
+
+def adf_text(document, depth=0):
+    # Comment bodies are untrusted, possibly malformed Jira content read back as plain
+    # text. Unknown or malformed nodes and anything nested past 50 levels read as "".
+    if depth > 50 or not isinstance(document, dict):
+        return ""
+    kind = document.get("type")
+    if kind == "text":
+        return document["text"] if isinstance(document.get("text"), str) else ""
+    if kind == "hardBreak":
+        return "\n"
+    if kind in ("mention", "emoji"):
+        attrs = document.get("attrs")
+        value = attrs.get("text") if isinstance(attrs, dict) else None
+        return value if isinstance(value, str) else ""
+    children = document.get("content")
+    if not isinstance(children, list):
+        return ""
+    joiner = "\n" if kind in ADF_BLOCK_CONTAINERS else ""
+    return joiner.join(adf_text(child, depth + 1) for child in children)
 
 
 def comment_input(filename):
@@ -457,8 +471,11 @@ def execute(args, jira, settings):
         comments = page.get("comments")
         if not isinstance(comments, list):
             raise Failure("Invalid comments response")
-        return {"key": key, "total": page.get("total"),
-                "comments": [{"id": c.get("id"), "created": c.get("created"), "body": adf_text(c.get("body"))}
+        total = page.get("total")
+        return {"key": key, "total": total if type(total) is int else None,
+                "comments": [{"id": c["id"] if isinstance(c.get("id"), str) and re.fullmatch(r"\d{1,20}", c["id"], flags=re.ASCII) else None,
+                              "created": c["created"] if isinstance(c.get("created"), str) else None,
+                              "body": adf_text(c.get("body"))}
                              for c in comments if isinstance(c, dict)]}
     if args.command == "comment":
         body = comment_input(args.input)
