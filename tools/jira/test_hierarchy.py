@@ -4,7 +4,7 @@ import tempfile
 import unittest
 
 import jira
-from test_jira import args, client
+from test_jira import args, client, setUpModule, tearDownModule
 
 
 TYPES = [{"id": "10", "name": "Epic"}, {"id": "20", "name": "Task"},
@@ -67,7 +67,7 @@ class HierarchyTests(unittest.TestCase):
             self.assertTrue(all(c[0] == "GET" for c in http.calls))
 
     def write_input(self, directory, **extras):
-        path = Path(directory) / "issue.json"
+        path = Path(directory) / "issue.local.json"
         path.write_text(json.dumps({"summary": "Fixture", "issueTypeId": "20", **extras}), encoding="utf-8")
         return str(path)
 

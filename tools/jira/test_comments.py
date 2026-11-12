@@ -7,10 +7,10 @@ import unittest
 from unittest.mock import patch
 
 import jira
-from test_jira import SECRETS, FakeHTTP, IDENTITY, args, client
+from test_jira import SECRETS, FakeHTTP, IDENTITY, args, client, setUpModule, tearDownModule
 
 
-def write(directory, value, name="comment.json"):
+def write(directory, value, name="comment.local.json"):
     file = Path(directory) / name
     file.write_text(value if isinstance(value, str) else json.dumps(value), encoding="utf-8")
     return str(file)
@@ -22,7 +22,7 @@ class CommentTests(unittest.TestCase):
             file = write(directory, {"body": "Progress (2026-11-12):\n\n- Step 3a merged – PR #29"})
             api, http = client([(200, IDENTITY)])
             result = jira.execute(args("comment", key="PF-1", input=file, apply=False), api, {"project": "PF"})
-        self.assertEqual(result["preview"], True)
+        self.assertTrue(result["preview"])
         self.assertEqual(result["operation"], "comment")
         self.assertEqual(result["key"], "PF-1")
         paragraphs = result["body"]["content"]
@@ -57,17 +57,20 @@ class CommentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             file = write(directory, {"body": "Done"})
             api, http = client([])
+            other = args("comment", key="OTHER-1", input=file, apply=True)
             with self.assertRaises(jira.Failure):
-                jira.execute(args("comment", key="OTHER-1", input=file, apply=True), api, {"project": "PF"})
+                jira.execute(other, api, {"project": "PF"})
             self.assertEqual(http.calls, [])
             api, http = client([(200, {"key": "OTHER-1", "fields": {"project": {"key": "OTHER"}}})])
+            moved = args("comment", key="PF-1", input=file, apply=True)
             with self.assertRaises(jira.Failure):
-                jira.execute(args("comment", key="PF-1", input=file, apply=True), api, {"project": "PF"})
+                jira.execute(moved, api, {"project": "PF"})
             self.assertEqual([c[0] for c in http.calls], ["GET"])
             for invalid in ({}, {"body": ""}, {"body": "   \n "}, {"body": 5}, {"body": "x" * 30001},
                             {"body": "ok", "visibility": {"type": "role", "value": "Administrators"}}, ["ok"]):
+                file = write(directory, invalid)
                 with self.subTest(invalid=invalid), self.assertRaises(jira.Failure):
-                    jira.comment_input(write(directory, invalid))
+                    jira.comment_input(file)
 
     def test_comment_requires_explicit_apply_at_the_transport_layer(self):
         for enabled in (False, None, 1, "true"):
@@ -77,9 +80,11 @@ class CommentTests(unittest.TestCase):
             with self.subTest(enabled=enabled), self.assertRaises(jira.Failure):
                 api.call("POST", "/issue/PF-1/comment", {"body": {}})
             self.assertEqual(http.calls, [])
+        cli = jira.parser()
         for flag in ("--a", "--app", "--apply=true"):
+            command = ["comment", "PF-1", "--input", "c.json", flag]
             with self.subTest(flag=flag), self.assertRaises(jira.Failure):
-                jira.parser().parse_args(["comment", "PF-1", "--input", "c.json", flag])
+                cli.parse_args(command)
         self.assertFalse(jira.parser().parse_args(["comment", "PF-1", "--input", "c.json"]).apply)
 
     def test_comments_lists_recent_bodies_as_text_without_author_details(self):
@@ -103,19 +108,20 @@ class CommentTests(unittest.TestCase):
 class InputAndOutputTests(unittest.TestCase):
     def test_input_file_problems_have_distinct_fixed_messages(self):
         with tempfile.TemporaryDirectory() as directory:
-            missing = str(Path(directory) / "missing.json")
-            large = write(directory, {"summary": "x" * 100_001}, "large.json")
+            missing = str(Path(directory) / "missing.local.json")
+            large = write(directory, {"summary": "x" * 100_001}, "large.local.json")
             for loader in (jira.input_fields, jira.comment_input):
                 with self.subTest(loader=loader.__name__):
                     with self.assertRaisesRegex(jira.Failure, "^Input file not found or not readable$"):
                         loader(missing)
                     with self.assertRaisesRegex(jira.Failure, "^Input file exceeds 100 KB$"):
                         loader(large)
+                    broken = write(directory, "{not json", "broken.local.json")
                     with self.assertRaisesRegex(jira.Failure, "^Input must be a UTF-8 JSON object$"):
-                        loader(write(directory, "{not json", "broken.json"))
-                    Path(directory, "latin.json").write_bytes(b'{"summary": "caf\xe9"}')
+                        loader(broken)
+                    Path(directory, "latin.local.json").write_bytes(b'{"summary": "caf\xe9"}')
                     with self.assertRaisesRegex(jira.Failure, "^Input must be a UTF-8 JSON object$"):
-                        loader(str(Path(directory, "latin.json")))
+                        loader(str(Path(directory, "latin.local.json")))
 
     def test_output_is_ascii_json_that_round_trips_and_stays_redacted(self):
         result = {"summary": "Migrations 00001–00003 · Grüße", "secret": SECRETS["token"] + "é"}
@@ -142,7 +148,7 @@ if __name__ == "__main__":
 class HardeningTests(unittest.TestCase):
     def test_input_with_a_utf8_byte_order_mark_is_accepted(self):
         with tempfile.TemporaryDirectory() as directory:
-            file = Path(directory) / "bom.json"
+            file = Path(directory) / "bom.local.json"
             file.write_bytes(b"\xef\xbb\xbf" + json.dumps({"body": "Done", "summary": "x"}).encode())
             self.assertEqual(jira.input_fields(write(directory, {"summary": "x"}))["summary"], "x")
             file.write_bytes(b"\xef\xbb\xbf" + b'{"summary": "x"}')
@@ -150,9 +156,25 @@ class HardeningTests(unittest.TestCase):
             file.write_bytes(b"\xef\xbb\xbf" + b'{"body": "Done"}')
             self.assertEqual(jira.comment_input(str(file))["content"][0]["content"][0]["text"], "Done")
 
+    def test_inputs_outside_tools_jira_or_without_the_local_suffix_are_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            allowed = write(directory, {"body": "Done"})
+            self.assertEqual(jira.comment_input(allowed)["content"][0]["content"][0]["text"], "Done")
+            inside_other_name = write(directory, {"body": "Done"}, "comment.json")
+            escaped = str(Path(directory) / ".." / ".." / Path(directory).name / "x.local.json")
+            outside = str(Path(jira.__file__).resolve())
+            for path in (inside_other_name, outside, escaped):
+                for loader in (jira.input_fields, jira.comment_input):
+                    with self.subTest(path=path, loader=loader.__name__), \
+                            self.assertRaisesRegex(jira.Failure, "^Input must be a tools/jira/\\*\\.local\\.json file$"):
+                        loader(path)
+        with patch.object(jira, "INPUT_DIR", jira.HOME), \
+                self.assertRaisesRegex(jira.Failure, "^Input must be a tools/jira/\\*\\.local\\.json file$"):
+            jira.comment_input(allowed)
+
     def test_deeply_nested_input_gets_the_fixed_json_message(self):
         with tempfile.TemporaryDirectory() as directory:
-            nested = write(directory, '{"body": ' + "[" * 40_000 + "]" * 40_000 + "}", "deep.json")
+            nested = write(directory, '{"body": ' + "[" * 40_000 + "]" * 40_000 + "}", "deep.local.json")
             with self.assertRaisesRegex(jira.Failure, "^Input must be a UTF-8 JSON object$"):
                 jira.comment_input(nested)
 
@@ -179,6 +201,6 @@ class HardeningTests(unittest.TestCase):
                                               {"id": "12", "created": "2026-11-12T01:00:00.000+0100", "body": None}]}
         api, _ = client([(200, IDENTITY), (200, page)])
         result = jira.execute(args("comments", key="PF-1", limit=10), api, {"project": "PF"})
-        self.assertEqual(result["total"], None)
+        self.assertIsNone(result["total"])
         self.assertEqual(result["comments"], [{"id": None, "created": None, "body": ""},
                                               {"id": "12", "created": "2026-11-12T01:00:00.000+0100", "body": ""}])

@@ -144,7 +144,9 @@ remain unsupported. Selected get/list results expose parent key and priority for
 independent verification. These fields do not bypass exact `--apply` or the
 independent write guard.
 
-Input files are read as UTF-8 JSON of at most 100 KB. A missing or unreadable file,
+Input files must be `tools/jira/*.local.json` files (git-ignored); the tool resolves
+symlinks and `..` and refuses any other path with one fixed message, so an agent cannot
+be steered into reading other local files. They are read as UTF-8 JSON of at most 100 KB. A missing or unreadable file,
 an oversized file and invalid JSON each have their own fixed message. Output is
 ASCII-only JSON, with non-ASCII text as `\u` escapes, so it decodes correctly in any
 console code page (for example when piped into another program on Windows).

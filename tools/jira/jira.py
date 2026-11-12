@@ -11,6 +11,9 @@ from urllib import error, parse, request
 
 HOME = Path(__file__).resolve().parent
 CONFIG = HOME / "config.local.json"
+# Agents write inputs as git-ignored tools/jira/*.local.json files; nothing else is read.
+INPUT_DIR = HOME
+NUMERIC_ID = r"\d{1,20}"
 TARGETS = {"email": "OWN/PANTRYJIRA_EMAIL", "token": "OWN/PANTRYJIRA_API",
            "site": "OWN/PANTRYJIRA_BASEURL"}
 
@@ -238,7 +241,7 @@ def issue_view(item, site):
 
 
 def numeric_id(value):
-    if not isinstance(value, str) or not re.fullmatch(r"\d{1,20}", value, flags=re.ASCII):
+    if not isinstance(value, str) or not re.fullmatch(NUMERIC_ID, value, flags=re.ASCII):
         raise Failure("Metadata IDs must be numeric strings")
     return value
 
@@ -317,7 +320,10 @@ def validate_creation_relationships(jira, project, fields):
 
 
 def read_input(filename):
-    file = Path(filename)
+    # Resolve symlinks and ".." first, so the containment check sees the real target.
+    file = Path(filename).resolve()
+    if not file.is_relative_to(INPUT_DIR.resolve()) or not file.name.endswith(".local.json"):
+        raise Failure("Input must be a tools/jira/*.local.json file")
     try:
         size = file.stat().st_size if file.is_file() else None
     except OSError:
@@ -473,7 +479,7 @@ def execute(args, jira, settings):
             raise Failure("Invalid comments response")
         total = page.get("total")
         return {"key": key, "total": total if type(total) is int else None,
-                "comments": [{"id": c["id"] if isinstance(c.get("id"), str) and re.fullmatch(r"\d{1,20}", c["id"], flags=re.ASCII) else None,
+                "comments": [{"id": c["id"] if isinstance(c.get("id"), str) and re.fullmatch(NUMERIC_ID, c["id"], flags=re.ASCII) else None,
                               "created": c["created"] if isinstance(c.get("created"), str) else None,
                               "body": adf_text(c.get("body"))}
                              for c in comments if isinstance(c, dict)]}
@@ -483,7 +489,7 @@ def execute(args, jira, settings):
             return {"preview": True, "operation": "comment", "key": key, "body": body}
         result = jira.call("POST", route + "/comment", {"body": body})
         comment_id = result.get("id") if isinstance(result, dict) else None
-        if not isinstance(comment_id, str) or not re.fullmatch(r"\d{1,20}", comment_id, flags=re.ASCII):
+        if not isinstance(comment_id, str) or not re.fullmatch(NUMERIC_ID, comment_id, flags=re.ASCII):
             raise WriteOutcomeUnknown()
         return {"commented": key, "commentId": comment_id,
                 "url": jira.site + "/browse/" + key + "?focusedCommentId=" + comment_id}

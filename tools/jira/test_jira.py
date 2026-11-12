@@ -11,6 +11,17 @@ from urllib import error, request
 
 import jira
 
+# Inputs must live under jira.INPUT_DIR (tools/jira); fixtures write to the temp directory.
+_inputs = patch.object(jira, "INPUT_DIR", Path(tempfile.gettempdir()).resolve())
+
+
+def setUpModule():
+    _inputs.start()
+
+
+def tearDownModule():
+    _inputs.stop()
+
 SECRETS = {"site": "https://pantry-test.atlassian.net", "email": "fixture@example.test",
            "token": "fixture-secret-with-special+characters"}
 CLOUD = "11111111-2222-3333-4444-555555555555"
@@ -138,7 +149,7 @@ class IntegrationTests(unittest.TestCase):
 
     def test_create_update_preview_and_apply_exact_fields(self):
         with tempfile.TemporaryDirectory() as directory:
-            file = Path(directory) / "issue.json"
+            file = Path(directory) / "issue.local.json"
             file.write_text(json.dumps({"summary": " Task ", "description": "First\nSecond",
                                         "issueTypeId": "10", "labels": ["pantryflow"]}), encoding="utf-8")
             api, http = client(standard_creation_metadata())
