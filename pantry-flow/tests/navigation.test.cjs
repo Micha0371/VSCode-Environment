@@ -11,6 +11,9 @@ const ancestorsOf = node => {
   for (let p = node.parent; p; p = p.parent) if (typeof p.type === 'string') names.push(p.type);
   return names;
 };
+const closestAncestor = (node, type) => {
+  for (let p = node.parent; p; p = p.parent) if (p.type === type) return p;
+};
 
 test('tab layout orders Pantry, Shopping, Settings behind the session gate', () => {
   const Tabs = ({ children }) => React.createElement(React.Fragment, null, children);
@@ -28,9 +31,7 @@ test('tab layout orders Pantry, Shopping, Settings behind the session gate', () 
     assert.deepEqual(screens.map(s => s.props.name), ['index', 'shopping', 'settings']);
     assert.equal(screens[1].props.options.title, 'nav_shopping');
     for (const screen of screens) {
-      const gate = screen.parent && (function find(n) {
-        for (let p = n.parent; p; p = p.parent) if (p.type === 'Gate') return p;
-      })(screen);
+      const gate = closestAncestor(screen, 'Gate');
       assert.ok(gate, 'every tab screen sits under the gate');
       assert.equal(gate.props.requireSession, true);
     }

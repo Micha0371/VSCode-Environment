@@ -64,9 +64,10 @@ test('an empty list shows the empty state without an add action', () => {
 });
 
 test('open items come before completed items, each under its heading', () => {
-  const r = render({ items: [done('d', '2026-01-02'), row('o')] });
+  const r = render({ items: [done('d1', '2026-01-02'), row('o'), done('d2', '2026-01-03')] });
   try {
     const list = r.root.findByType('SectionList').props;
+    assert.deepEqual(list.sections.map(s => s.data.map(i => i.id)), [['o'], ['d2', 'd1']]);
     assert.deepEqual(list.sections.map(s => s.key), ['open', 'completed']);
     assert.deepEqual(list.sections.map(s => s.title), ['shopping_section_open', 'shopping_section_completed']);
     assert.equal(list.renderItem({ item: row('o') }).props.item.is_checked, false);
