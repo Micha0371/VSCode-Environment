@@ -1,6 +1,7 @@
 export const en = {
   // Navigation
   nav_pantry: 'Pantry',
+  nav_shopping: 'Shopping',
   nav_settings: 'Settings',
 
   // Auth
@@ -107,6 +108,12 @@ export const en = {
   err_shopping_permission: 'You do not have access to this shopping list.',
   err_shopping_missing: 'This shopping list item is no longer available.',
   err_generic: 'Something went wrong. Please try again.',
+
+  // Shopping list
+  shopping_empty_title: 'Your shopping list is empty',
+  shopping_empty_subtitle: 'Add the things you need to buy.',
+  shopping_section_open: 'To buy',
+  shopping_section_completed: 'Completed',
 };
 
 export type TranslationKey = keyof typeof en;

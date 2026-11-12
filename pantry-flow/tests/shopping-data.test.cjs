@@ -4,7 +4,7 @@ const { load } = require('./helpers.cjs');
 const pagination = load('lib/pagination.ts');
 const { validateShoppingName, parseShoppingItem, assertUniqueOpenName, shoppingErrorKey,
   fetchAllShoppingItems, insertShoppingItem, renameShoppingItem, setShoppingItemChecked,
-  deleteShoppingItem } = load('lib/shopping-data.ts', { './pagination': pagination });
+  deleteShoppingItem, splitShoppingItems } = load('lib/shopping-data.ts', { './pagination': pagination });
 const { en } = load('lib/i18n/en.ts');
 const { PAGE_SIZE } = pagination;
 
@@ -176,4 +176,15 @@ test('every shopping operation reports failures as a rejected promise, never a s
     assert.ok(result instanceof Promise, `${label} returns a Promise`);
     await assert.rejects(result, /boom/);
   }
+});
+
+test('splitShoppingItems separates open from completed and orders completions newest first', () => {
+  const items = [row('open-b'), row('done-old', { is_checked: true, completed_at: '2026-01-01' }),
+    row('open-a'), row('done-new', { is_checked: true, completed_at: '2026-01-03' })];
+  const { open, completed } = splitShoppingItems(items);
+  assert.deepEqual(open.map(i => i.id), ['open-b', 'open-a']);
+  assert.deepEqual(completed.map(i => i.id), ['done-new', 'done-old']);
+  const tied = splitShoppingItems([row('a', { is_checked: true, completed_at: '2026-01-01' }),
+    row('c', { is_checked: true, completed_at: '2026-01-01' }), row('b', { is_checked: true, completed_at: '2026-01-01' })]);
+  assert.deepEqual(tied.completed.map(i => i.id), ['c', 'b', 'a']);
 });

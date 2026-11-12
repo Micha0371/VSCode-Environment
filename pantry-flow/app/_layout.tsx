@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { I18nProvider } from '@/lib/i18n';
 import { PantryProvider } from '@/hooks/usePantryItems';
+import { ShoppingProvider } from '@/hooks/useShoppingItems';
 import { HouseholdProvider } from '@/hooks/household-scope';
 import { AuthProvider } from '@/lib/auth';
 import { colors } from '@/lib/theme';
@@ -17,6 +18,7 @@ export default function RootLayout() {
           <AuthProvider>
             <HouseholdProvider>
             <PantryProvider>
+              <ShoppingProvider>
               <StatusBar style="dark" />
               <Stack
                 screenOptions={{
@@ -38,6 +40,7 @@ export default function RootLayout() {
                   options={{ presentation: 'modal', title: '' }}
                 />
               </Stack>
+              </ShoppingProvider>
             </PantryProvider>
             </HouseholdProvider>
           </AuthProvider>
