@@ -96,9 +96,8 @@ name: Slice 2 shopping journey
 - assertVisible:
     id: shopping-screen
 - tapOn: Pantry
-- doubleTapOn:
-    id: pantry-item-.*
-    text: Milk
+# By its name text: the row's pressable combines several texts into one label.
+- doubleTapOn: Milk
 - extendedWaitUntil:
     visible:
       id: edit-item-name

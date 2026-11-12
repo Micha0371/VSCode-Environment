@@ -138,11 +138,12 @@ Two earlier red attempts over Wi-Fi ADB broke inside Slice 1.1 (a retry that
 could not reach the stack while a build ran in parallel, then a stalled Maestro
 driver) and are not counted.
 
-After the green phone run, the final review changed the flow: the Pantry double
-tap now targets `pantry-item-.*` with text Milk instead of the text alone, and
-both "no second edit screen" waits are 15 s instead of 5 s. These changes have
-not run on the phone; the emulator run on the final head covers them and has
-not run yet.
+After the green phone run, the final review raised both "no second edit screen"
+waits from 5 s to 15 s. That change has not run on the phone; the emulator run
+on the final head covers it and has not run yet. The Pantry double tap stays on
+the name text "Milk", which the phone run showed opening the row; the row's
+pressable combines several texts into one label, so `id` plus `text: Milk`
+would not match it.
 
 ## Slice 1.1 baseline coverage
 
