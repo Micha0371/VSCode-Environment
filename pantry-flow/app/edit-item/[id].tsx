@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -68,6 +68,9 @@ function EditItemModalContent() {
   const [hydrated, setHydrated] = useState(false);
   const { busy, run } = useItemMutation();
   const [error, setError] = useState<string | null>(null);
+  // The provider drops a deleted row before the delete resolves; until the screen
+  // has closed, that is this screen's own delete, not a missing item (KAN-35).
+  const removing = useRef(false);
 
   useEffect(() => {
     if (item && !hydrated) {
@@ -78,6 +81,8 @@ function EditItemModalContent() {
       setHydrated(true);
     }
   }, [item, hydrated]);
+
+  if (!item && removing.current) return <View style={styles.safe} />;
 
   if (loading && !item) {
     return (
@@ -144,9 +149,9 @@ function EditItemModalContent() {
           text: t('common_delete'),
           style: 'destructive',
           onPress: () => { void run(
-            () => deleteItem(item.id),
+            () => { removing.current = true; return deleteItem(item.id); },
             () => router.back(),
-            () => setError(t('err_delete_item')),
+            () => { removing.current = false; setError(t('err_delete_item')); },
           ); },
         },
       ]
