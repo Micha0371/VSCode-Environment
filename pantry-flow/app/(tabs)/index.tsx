@@ -13,11 +13,13 @@ import { EmptyState } from '@/components/EmptyState';
 import { PantryItem } from '@/components/PantryItem';
 import { Button } from '@/components/Button';
 import { usePantryItems } from '@/hooks/usePantryItems';
+import { useSingleOpen } from '@/hooks/useSingleOpen';
 import { useTranslation } from '@/lib/i18n';
 import { colors, radii, spacing, typography } from '@/lib/theme';
 
 export default function PantryScreen() {
   const router = useRouter();
+  const openEditor = useSingleOpen();
   const { t } = useTranslation();
   const { items, loading, error, retry } = usePantryItems();
 
@@ -57,7 +59,7 @@ export default function PantryScreen() {
             renderItem={({ item }) => (
               <PantryItem
                 item={item}
-                onPress={() => router.push(`/edit-item/${item.id}`)}
+                onPress={() => openEditor(`/edit-item/${item.id}`)}
               />
             )}
             contentContainerStyle={styles.list}

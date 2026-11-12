@@ -8,7 +8,12 @@ const native = { Text: 'Text', View: 'View', ActivityIndicator: 'Spinner', Secti
   Pressable: 'Pressable', StyleSheet: { create: styles => styles } };
 const t = key => key;
 const pushes = [];
-const shared = { 'expo-router': { useRouter: () => ({ push: route => pushes.push(route) }) }, 'react-native': native, '@/lib/theme': theme, '@expo/vector-icons': { Ionicons: 'Icon' },
+// The real single-open hook runs with the same router stub; the list stays focused.
+const routerStubs = push => {
+  const expoRouter = { useRouter: () => ({ push }), useFocusEffect: callback => React.useEffect(callback, [callback]) };
+  return { 'expo-router': expoRouter, '@/hooks/useSingleOpen': load('hooks/useSingleOpen.ts', { 'expo-router': expoRouter }) };
+};
+const shared = { ...routerStubs(route => pushes.push(route)), 'react-native': native, '@/lib/theme': theme, '@expo/vector-icons': { Ionicons: 'Icon' },
   '@/lib/i18n': { useTranslation: () => ({ t }) }, '@/components/Button': { Button: 'Button' }, '@/components/Input': { Input: 'Input' },
   '@/components/EmptyState': { EmptyState: 'EmptyState' }, '@/components/ShoppingItem': { ShoppingItem: 'Row' },
   '@/lib/shopping-data': load('lib/shopping-data.ts', { './pagination': load('lib/pagination.ts') }) };
@@ -94,7 +99,6 @@ function renderAdd(state) {
   });
   const { default: Screen } = load('app/(tabs)/shopping.tsx', { ...shared,
     '@/components/Input': { Input: focusStub },
-    'expo-router': { useRouter: () => ({ push: route => pushes.push(route) }) },
     '@/hooks/useShoppingItems': { useShoppingItems: () => ({ householdId: 'h', items: [], loading: false,
       error: null, retry: () => {}, addItem: async () => row('new'), ...state }) } });
   let renderer;
@@ -358,6 +362,17 @@ test('pressing a row name opens the edit modal for that item', () => {
     const props = r.renderer.root.findByType('SectionList').props.renderItem({ item }).props;
     act(() => props.onPress());
     assert.deepEqual(pushes, ['/shopping-item/1']);
+  } finally { act(() => r.renderer.unmount()); }
+});
+
+test('fast repeated row taps open one edit screen, even on different rows (KAN-33)', () => {
+  const a = row('a'); const b = row('b');
+  const r = renderAdd({ items: [a, b] });
+  try {
+    pushes.length = 0;
+    const tap = item => r.renderer.root.findByType('SectionList').props.renderItem({ item }).props.onPress();
+    act(() => { tap(a); tap(a); tap(b); });
+    assert.deepEqual(pushes, ['/shopping-item/a']);
   } finally { act(() => r.renderer.unmount()); }
 });
 

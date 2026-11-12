@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, SectionList, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { EmptyState } from '@/components/EmptyState';
 import { ShoppingItem } from '@/components/ShoppingItem';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { useShoppingItems } from '@/hooks/useShoppingItems';
+import { useSingleOpen } from '@/hooks/useSingleOpen';
 import { useTranslation } from '@/lib/i18n';
 import { SHOPPING_NAME_MAX, shoppingErrorKey, splitShoppingItems, type ShoppingItem as ShoppingItemData } from '@/lib/shopping-data';
 import { colors, spacing, typography } from '@/lib/theme';
@@ -22,7 +22,7 @@ export default function ShoppingScreen() {
 
 function HouseholdShoppingScreen() {
   const { t } = useTranslation();
-  const router = useRouter();
+  const openEditor = useSingleOpen();
   const { householdId, items, loading, error, retry, addItem, completeItem, reopenItem } = useShoppingItems();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -154,7 +154,7 @@ function HouseholdShoppingScreen() {
             <ShoppingItem
               item={item}
               onToggle={() => { void toggle(item); }}
-              onPress={() => router.push(`/shopping-item/${item.id}`)}
+              onPress={() => openEditor(`/shopping-item/${item.id}`)}
               pending={pendingIds.has(item.id)}
             />
           )}
