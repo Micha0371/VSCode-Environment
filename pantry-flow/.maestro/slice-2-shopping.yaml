@@ -138,7 +138,12 @@ name: Slice 2 shopping journey
 
 # Complete, reopen, complete again. The first toggle is tapped with the keyboard open.
 - tapOn: Shopping
-# The rejected prompt add left a single Milk.
+# The rejected prompt add left a single Milk (once the list has loaded).
+- extendedWaitUntil:
+    visible:
+      id: shopping-toggle-.*
+      text: Milk
+    timeout: 15000
 - assertNotVisible:
     id: shopping-toggle-.*
     text: Milk
