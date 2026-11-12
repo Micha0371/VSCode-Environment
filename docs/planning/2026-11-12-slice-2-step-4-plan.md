@@ -134,4 +134,6 @@ Everything above runs inside `run`'s operation, so the Save, Cancel and Delete b
 - **No prompt if the edit screen closed before the save finished:** D3 places the prompt in the edit screen's save flow, so it must not appear over another screen. The pantry change is still saved. Cost if wrong: a skipped prompt in a rare race; the user can add the item manually.
 - **The prompt's message is the item name.** The i18n layer has no interpolation, and Slice 2 is English-only (D5). Cost if wrong: one string change in the localization slice.
 - **KAN-32** (PF-STATE-001: PantryProvider write before first load can leave the list loading) stays latent. The prompt runs only after a successful `updateItem` on a loaded item, and step 4 adds no new pantry write path.
+- **Test stub:** `tests/screens.test.cjs` also needed a `'@/lib/pantry-shopping'` stub (`load` cannot resolve `@/` aliases); stub only, test body unchanged.
+- **Step 5 device checklist additions:** the prompt appears after Save with the spinner behind it; Android back dismisses it as "Not now"; the screen closes after a duplicate notice; a lost alert (no Activity) would leave the form busy, and hardware back still closes the modal.
 - **Separate finding, not in this PR:** `lib/i18n/en.ts` `common_loading` contains a double-encoded ellipsis (`Loadingâ€¦`) from `e6dbcf8`. No screen uses the key today.

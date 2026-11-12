@@ -123,7 +123,8 @@ function EditItemModalContent() {
       async () => {
         const saved = await updateItem(item.id, { name: trimmed, category, location, status });
         if (!mounted.current || !offersShoppingAdd(previous, saved.status)) return;
-        if (!(await ask(t('shopping_prompt_title'), saved.name, t('shopping_prompt_add'), t('shopping_prompt_skip')))) return;
+        const wanted = await ask(t('shopping_prompt_title'), saved.name, t('shopping_prompt_add'), t('shopping_prompt_skip'));
+        if (!wanted || !mounted.current) return;
         try {
           await addShoppingItem({ name: saved.name, pantryItemId: saved.id });
         } catch (shoppingError) {

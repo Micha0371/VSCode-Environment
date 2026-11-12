@@ -47,9 +47,11 @@ test('pantry and shopping stay independent with ordinary clients', async () => {
 
     // Pantry status changes never create shopping items.
     const before = await shoppingCount();
-    for (const status of ['out', 'in_stock']) {
-      const updated = await client.from('pantry_items').update({ status }).eq('id', milk.id);
+    for (const status of ['out', 'low', 'in_stock']) {
+      const updated = await client.from('pantry_items').update({ status }).eq('id', milk.id)
+        .select('status').single();
       assert.equal(updated.error, null);
+      assert.equal(updated.data!.status, status);
     }
     assert.equal(await shoppingCount(), before);
 
@@ -72,6 +74,13 @@ test('pantry and shopping stay independent with ordinary clients', async () => {
     assert.ok(survivor);
     assert.equal(survivor.name, 'bread');
     assert.equal(survivor.pantry_item_id, null);
+
+    // A link to the deleted pantry item is rejected and adds nothing.
+    const countBeforeStale = await shoppingCount();
+    assert.equal(shoppingErrorKey(await rejection(
+      insertShoppingItem(client, household, id, { name: 'Stale link', pantryItemId: breadPantry.id }))),
+    'err_shopping_link_missing');
+    assert.equal(await shoppingCount(), countBeforeStale);
   } finally {
     await cleanup(stack.admin);
   }

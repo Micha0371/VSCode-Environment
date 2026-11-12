@@ -15,7 +15,7 @@ const baseItem = { id: '1', name: 'Milk', category: 'dairy', location: 'fridge',
 
 function render({ updateItem, addItem, shopping = {}, current = 'in_stock' } = {}) {
   const item = { ...baseItem, status: current };
-  const log = { back: 0, alerts: [], adds: [], updates: 0 };
+  const log = { back: 0, alerts: [], adds: [], updates: 0, deletes: 0 };
   const native = { Text: 'Text', View: 'View', ActivityIndicator: 'Spinner', Pressable: 'Pressable',
     ScrollView: 'ScrollView', KeyboardAvoidingView: 'KeyboardAvoidingView', Platform: { OS: 'android' },
     Alert: { alert: (...args) => log.alerts.push(args) }, StyleSheet: { create: s => s } };
@@ -29,7 +29,7 @@ function render({ updateItem, addItem, shopping = {}, current = 'in_stock' } = {
     '@/hooks/useItemMutation': mutation, '@/lib/pantry-data': pantryData,
     '@/lib/shopping-data': shoppingData, '@/lib/pantry-shopping': pantryShopping,
     '@/hooks/usePantryItems': { usePantryItems: () => ({ loading: false, error: null, retry: () => {},
-      getItem: () => item, deleteItem: async () => {},
+      getItem: () => item, deleteItem: async () => { log.deletes++; },
       updateItem: async (id, input) => { log.updates++; return updateItem(id, input); } }) },
     '@/hooks/useShoppingItems': { useShoppingItems: () => ({ loading: false, items: [], ...shopping,
       addItem: async input => { log.adds.push(input); return (addItem ?? (async () => ({})))(input); } }) },
@@ -118,6 +118,8 @@ for (const [code, message] of [['23505', 'err_duplicate_shopping_item'], ['23503
       await pending;
       assert.equal(log.back, 1);
       assert.equal(input().props.error, null);
+      assert.equal(log.updates, 1);
+      assert.equal(log.deletes, 0);
     } finally { act(() => renderer.unmount()); }
   });
 }
@@ -148,6 +150,33 @@ test('no prompt after the edit screen has closed during the save', async () => {
   await act(async () => { d.resolve(); await pending; });
   assert.equal(log.alerts.length, 0);
   assert.equal(log.back, 0);
+});
+
+test('a prompt answered after the screen unmounted adds nothing and shows no notice', async () => {
+  const { renderer, log, by, press } = render({ updateItem: saved('low') });
+  setStatus(by, 'low');
+  const pending = start(by);
+  await flush();
+  assert.equal(log.alerts.length, 1);
+  act(() => renderer.unmount());
+  await act(async () => { press('shopping_prompt_add'); await flush(); });
+  await pending;
+  assert.equal(log.adds.length, 0);
+  assert.equal(log.alerts.length, 1);
+});
+
+test('the prompt and the shopping add use the saved name, not the form name', async () => {
+  const { renderer, log, by, press } = render({
+    updateItem: async () => ({ ...baseItem, name: 'Whole milk', status: 'low' }) });
+  try {
+    setStatus(by, 'low');
+    const pending = start(by);
+    await flush();
+    assert.equal(log.alerts[0][1], 'Whole milk');
+    await act(async () => { press('shopping_prompt_add'); await flush(); });
+    await pending;
+    assert.deepEqual(log.adds, [{ name: 'Whole milk', pantryItemId: '1' }]);
+  } finally { act(() => renderer.unmount()); }
 });
 
 test('the shopping add is sent while the shopping list is still loading', async () => {
