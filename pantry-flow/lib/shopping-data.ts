@@ -131,3 +131,16 @@ export async function deleteShoppingItem(
   if (error) throw error;
   if (!data || data.length === 0) throw coded('Shopping item not found', 'PF_SHOPPING_MISSING');
 }
+
+// Open items keep the fetched (newest-created first) order; completed items
+// are ordered newest completion first, ties broken by id descending.
+export function splitShoppingItems(items: ShoppingItem[]): { open: ShoppingItem[]; completed: ShoppingItem[] } {
+  const open = items.filter(item => !item.is_checked);
+  const completed = items.filter(item => item.is_checked).sort((a, b) => {
+    const at = a.completed_at ?? '';
+    const bt = b.completed_at ?? '';
+    if (at !== bt) return at < bt ? 1 : -1;
+    return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+  });
+  return { open, completed };
+}
