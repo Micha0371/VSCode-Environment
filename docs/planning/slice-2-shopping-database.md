@@ -27,6 +27,11 @@ Its `id` defaults to core `gen_random_uuid()`, not uuid-ossp's
   open-name uniqueness. A duplicate insert, rename or reopen fails with 23505;
   callers later map that to the translated duplicate error. No merge/rename or
   overwrite occurs automatically. Completed names may repeat.
+- Pantry add: the low/out prompt in the pantry edit screen uses the same insert
+  as a manual add, with the pantry link. Linked and manual items share the
+  open-name space, and completed items never block an add. A duplicate is
+  rejected with the translated duplicate message and is never merged or renamed.
+  Pantry deletion keeps the shopping item's own name and clears only the link.
 - The composite pantry FK uses `(household_id, pantry_item_id)` and the new
   pantry `(household_id, id)` unique key. A foreign-household link fails even if
   the client bypasses UI checks. Pantry deletion clears only the optional link,

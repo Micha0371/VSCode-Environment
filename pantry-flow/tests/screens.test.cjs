@@ -137,6 +137,9 @@ for (const [file, label] of [['app/add-item.tsx', 'item_add_button'], ['app/edit
       '@/components/AuthGate': { AuthGate: ({ children }) => children },
       '@/components/Input': { Input: 'Input' }, '@/components/OptionChips': { OptionChips: 'OptionChips' },
       '@/hooks/useItemMutation': mutation, '@/lib/pantry-data': data, '@/lib/constants': constants,
+      '@/hooks/useShoppingItems': { useShoppingItems: () => ({ addItem: async () => ({}) }) },
+      '@/lib/shopping-data': load('lib/shopping-data.ts', { './pagination': load('lib/pagination.ts') }),
+      '@/lib/pantry-shopping': load('lib/pantry-shopping.ts'),
       '@/hooks/usePantryItems': { usePantryItems: () => ({ householdId: 'h', loading: false, error: null,
         addItem: duplicate, updateItem: duplicate, getItem: () => existing }) },
     });

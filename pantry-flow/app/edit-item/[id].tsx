@@ -18,9 +18,34 @@ import { AuthGate } from '@/components/AuthGate';
 import { useItemMutation } from '@/hooks/useItemMutation';
 import { ITEM_NAME_MAX, itemSaveErrorKey } from '@/lib/pantry-data';
 import { usePantryItems } from '@/hooks/usePantryItems';
+import { useShoppingItems } from '@/hooks/useShoppingItems';
+import { shoppingErrorKey } from '@/lib/shopping-data';
+import { offersShoppingAdd } from '@/lib/pantry-shopping';
 import { useTranslation } from '@/lib/i18n';
 import { CATEGORIES, LOCATIONS, STATUSES } from '@/lib/constants';
 import { colors, radii, spacing, typography, StatusKey } from '@/lib/theme';
+
+// Resolves true on the affirmative button, false on the other button or dismissal.
+function ask(title: string, message: string, addLabel: string, skipLabel: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: skipLabel, style: 'cancel', onPress: () => resolve(false) },
+        { text: addLabel, onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
+function notice(title: string, message: string, okLabel: string): Promise<void> {
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [{ text: okLabel, onPress: () => resolve() }],
+      { cancelable: true, onDismiss: () => resolve() });
+  });
+}
 
 export default function EditItemModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,6 +57,7 @@ function EditItemModalContent() {
   const router = useRouter();
   const { t } = useTranslation();
   const { loading, error: loadError, retry, updateItem, deleteItem, getItem } = usePantryItems();
+  const { addItem: addShoppingItem } = useShoppingItems();
 
   const item = id ? getItem(id) : null;
 
@@ -87,8 +113,21 @@ function EditItemModalContent() {
       setError(t('err_item_name_length')); return;
     }
     setError(null);
+    const previous = item.status;
     await run(
-      () => updateItem(item.id, { name: trimmed, category, location, status }),
+      async (current) => {
+        const saved = await updateItem(item.id, { name: trimmed, category, location, status });
+        // current() is false once this screen has closed or another screen covers it.
+        if (!current() || !offersShoppingAdd(previous, saved.status)) return;
+        const wanted = await ask(t('shopping_prompt_title'), saved.name, t('shopping_prompt_add'), t('shopping_prompt_skip'));
+        if (!wanted || !current()) return;
+        try {
+          await addShoppingItem({ name: saved.name, pantryItemId: saved.id });
+        } catch (shoppingError) {
+          if (!current()) return;
+          await notice(t('shopping_prompt_failed_title'), t(shoppingErrorKey(shoppingError)), t('common_ok'));
+        }
+      },
       () => router.back(),
       (failure) => setError(t(itemSaveErrorKey(failure))),
     );

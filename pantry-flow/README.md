@@ -136,7 +136,8 @@ Smoke test on a device against a disposable account:
 - `lib/pagination.ts`: shared complete-read pagination.
 - `lib/pantry-data.ts`: validation, response parsing, and paged inventory reads.
 - `lib/shopping-data.ts`: shopping validation, parsing, error mapping and Supabase operations.
-- `hooks/useShoppingItems.tsx`: ShoppingProvider shared state; not mounted until the Shopping tab in step 3a.
+- `hooks/useShoppingItems.tsx`: ShoppingProvider shared state; mounted at the root inside the household scope; used by the Shopping tab, its edit modal and the pantry edit screen's low/out prompt.
+- `lib/pantry-shopping.ts`: pantry-to-shopping prompt rule (when a status change offers a shopping add).
 - `hooks/useItemMutation.ts`: mutual exclusion and abandoned-screen protection.
 - `supabase/migrations/`: authoritative database permissions and integrity rules.
 

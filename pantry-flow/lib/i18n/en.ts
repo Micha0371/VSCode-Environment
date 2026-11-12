@@ -72,6 +72,7 @@ export const en = {
   common_save: 'Save',
   common_delete: 'Delete',
   common_back: 'Back',
+  common_ok: 'OK',
   common_loading: 'Loadingâ€¦',
 
   common_retry: 'Try again',
@@ -110,6 +111,10 @@ export const en = {
   err_generic: 'Something went wrong. Please try again.',
 
   // Shopping list
+  shopping_prompt_title: 'Add to shopping list?',
+  shopping_prompt_add: 'Add',
+  shopping_prompt_skip: 'Not now',
+  shopping_prompt_failed_title: 'Not added to the shopping list',
   shopping_empty_title: 'Your shopping list is empty',
   shopping_empty_subtitle: 'Add the things you need to buy.',
   shopping_section_open: 'To buy',
