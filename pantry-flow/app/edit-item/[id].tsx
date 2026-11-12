@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -58,11 +58,6 @@ function EditItemModalContent() {
   const { t } = useTranslation();
   const { loading, error: loadError, retry, updateItem, deleteItem, getItem } = usePantryItems();
   const { addItem: addShoppingItem } = useShoppingItems();
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => { mounted.current = false; };
-  }, []);
 
   const item = id ? getItem(id) : null;
 
@@ -120,14 +115,16 @@ function EditItemModalContent() {
     setError(null);
     const previous = item.status;
     await run(
-      async () => {
+      async (current) => {
         const saved = await updateItem(item.id, { name: trimmed, category, location, status });
-        if (!mounted.current || !offersShoppingAdd(previous, saved.status)) return;
+        // current() is false once this screen has closed or another screen covers it.
+        if (!current() || !offersShoppingAdd(previous, saved.status)) return;
         const wanted = await ask(t('shopping_prompt_title'), saved.name, t('shopping_prompt_add'), t('shopping_prompt_skip'));
-        if (!wanted || !mounted.current) return;
+        if (!wanted || !current()) return;
         try {
           await addShoppingItem({ name: saved.name, pantryItemId: saved.id });
         } catch (shoppingError) {
+          if (!current()) return;
           await notice(t('shopping_prompt_failed_title'), t(shoppingErrorKey(shoppingError)), t('common_ok'));
         }
       },

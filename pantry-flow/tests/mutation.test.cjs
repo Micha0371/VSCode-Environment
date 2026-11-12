@@ -34,3 +34,26 @@ test('mutation lock is immediate and navigating away abandons completion callbac
   await act(async () => { unmounted.resolve(); await last; });
   assert.equal(successes, 1);
 });
+
+test('the operation can ask whether its screen is still current', async () => {
+  let blur, value;
+  const { useItemMutation } = load('hooks/useItemMutation.ts', { 'expo-router': {
+    useFocusEffect: callback => React.useEffect(() => { blur = callback(); return blur; }, [callback]),
+  } });
+  function Consumer() { value = useItemMutation(); return null; }
+  let renderer;
+  act(() => { renderer = create(React.createElement(Consumer)); });
+  const seen = [];
+  const step = deferred();
+  let pending;
+  act(() => { pending = value.run(async current => { seen.push(current()); await step.promise; seen.push(current()); },
+    () => {}, () => {}); });
+  blur();
+  await act(async () => { step.resolve(); await pending; });
+  const later = deferred();
+  act(() => { pending = value.run(async current => { seen.push(current()); await later.promise; seen.push(current()); },
+    () => {}, () => {}); });
+  act(() => renderer.unmount());
+  await act(async () => { later.resolve(); await pending; });
+  assert.deepEqual(seen, [true, false, true, false]);
+});

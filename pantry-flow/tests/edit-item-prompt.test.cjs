@@ -9,13 +9,16 @@ const constants = load('lib/constants.ts');
 const pantryData = load('lib/pantry-data.ts', { './constants': constants, './pagination': load('lib/pagination.ts') });
 const shoppingData = load('lib/shopping-data.ts', { './pagination': load('lib/pagination.ts') });
 const pantryShopping = load('lib/pantry-shopping.ts');
-const mutation = load('hooks/useItemMutation.ts', { 'expo-router': { useFocusEffect: () => {} } });
 const t = key => key;
 const baseItem = { id: '1', name: 'Milk', category: 'dairy', location: 'fridge', status: 'in_stock' };
 
 function render({ updateItem, addItem, shopping = {}, current = 'in_stock' } = {}) {
   const item = { ...baseItem, status: current };
   const log = { back: 0, alerts: [], adds: [], updates: 0, deletes: 0 };
+  const focus = { blur: () => {} };
+  const mutation = load('hooks/useItemMutation.ts', { 'expo-router': {
+    useFocusEffect: callback => React.useEffect(() => { focus.blur = callback(); return focus.blur; }, [callback]),
+  } });
   const native = { Text: 'Text', View: 'View', ActivityIndicator: 'Spinner', Pressable: 'Pressable',
     ScrollView: 'ScrollView', KeyboardAvoidingView: 'KeyboardAvoidingView', Platform: { OS: 'android' },
     Alert: { alert: (...args) => log.alerts.push(args) }, StyleSheet: { create: s => s } };
@@ -38,7 +41,7 @@ function render({ updateItem, addItem, shopping = {}, current = 'in_stock' } = {
   act(() => { renderer = create(React.createElement(Screen)); });
   const by = id => renderer.root.findByProps({ testID: id });
   const press = text => log.alerts.at(-1)[2].find(b => b.text === text).onPress();
-  return { renderer, log, by, press, input: () => renderer.root.findByType('Input') };
+  return { renderer, log, by, press, blur: () => focus.blur(), input: () => renderer.root.findByType('Input') };
 }
 const saved = status => async () => ({ ...baseItem, status });
 const start = by => { let p; act(() => { p = by('edit-item-save').props.onPress(); }); return p; };
@@ -190,3 +193,55 @@ test('the shopping add is sent while the shopping list is still loading', async 
     assert.equal(log.adds.length, 1);
   } finally { act(() => renderer.unmount()); }
 });
+
+test('no prompt when another screen covered the edit screen during the save', async () => {
+  const d = deferred();
+  const { renderer, log, by, blur } = render({ updateItem: async () => { await d.promise; return { ...baseItem, status: 'low' }; } });
+  try {
+    setStatus(by, 'low');
+    const pending = start(by);
+    blur();
+    await act(async () => { d.resolve(); await flush(); });
+    assert.equal(log.updates, 1);
+    assert.equal(log.alerts.length, 0);
+    await pending;
+    assert.equal(log.back, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a prompt answered after the screen lost focus adds nothing and shows no notice', async () => {
+  const { renderer, log, by, press, blur } = render({ updateItem: saved('low') });
+  try {
+    setStatus(by, 'low');
+    const pending = start(by);
+    await flush();
+    assert.equal(log.alerts.length, 1);
+    blur();
+    await act(async () => { press('shopping_prompt_add'); await flush(); });
+    await pending;
+    assert.equal(log.adds.length, 0);
+    assert.equal(log.alerts.length, 1);
+    assert.equal(log.back, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+for (const [label, leave] of [['closed', 'unmount'], ['lost focus', 'blur']]) {
+  test(`no failure notice when the screen ${label} while the shopping add was pending`, async () => {
+    const d = deferred();
+    const { renderer, log, by, press, blur } = render({ updateItem: saved('low'),
+      addItem: async () => { await d.promise; throw { code: '23505' }; } });
+    let unmounted = false;
+    try {
+      setStatus(by, 'low');
+      const pending = start(by);
+      await flush();
+      await act(async () => { press('shopping_prompt_add'); await flush(); });
+      assert.equal(log.adds.length, 1);
+      if (leave === 'unmount') { act(() => renderer.unmount()); unmounted = true; } else blur();
+      await act(async () => { d.resolve(); await flush(); });
+      assert.equal(log.alerts.length, 1);
+      await pending;
+      assert.equal(log.back, 0);
+    } finally { if (!unmounted) act(() => renderer.unmount()); }
+  });
+}
