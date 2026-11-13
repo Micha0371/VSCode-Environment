@@ -10,10 +10,15 @@ const native = { Text: 'Text', View: 'View', ActivityIndicator: 'Spinner', FlatL
 const t = key => key;
 const shared = { 'react-native': native, '@/lib/theme': theme,
   '@/lib/i18n': { useTranslation: () => ({ t }) }, '@/components/Button': { Button: 'Button' } };
+// The real single-open hook runs with the same router stub; the list stays focused.
+const routerStubs = push => {
+  const expoRouter = { useRouter: () => ({ push }), useFocusEffect: callback => React.useEffect(callback, [callback]) };
+  return { 'expo-router': expoRouter, '@/hooks/useSingleOpen': load('hooks/useSingleOpen.ts', { 'expo-router': expoRouter }) };
+};
 
 test('initial inventory loading shows progress without claiming an empty pantry', () => {
   const { default: Screen } = load('app/(tabs)/index.tsx', { ...shared,
-    'expo-router': { useRouter: () => ({}) }, '@expo/vector-icons': { Ionicons: 'Icon' },
+    ...routerStubs(() => {}), '@expo/vector-icons': { Ionicons: 'Icon' },
     '@/components/EmptyState': { EmptyState: 'EmptyState' }, '@/components/PantryItem': { PantryItem: 'Item' },
     '@/hooks/usePantryItems': { usePantryItems: () => ({ items: [], loading: true, error: null }) },
   });
@@ -28,7 +33,7 @@ test('initial inventory loading shows progress without claiming an empty pantry'
 test('a failed initial pantry load shows retry instead of claiming the pantry is empty', () => {
   let retries = 0;
   const { default: Screen } = load('app/(tabs)/index.tsx', { ...shared,
-    'expo-router': { useRouter: () => ({}) }, '@expo/vector-icons': { Ionicons: 'Icon' },
+    ...routerStubs(() => {}), '@expo/vector-icons': { Ionicons: 'Icon' },
     '@/components/EmptyState': { EmptyState: 'EmptyState' }, '@/components/PantryItem': { PantryItem: 'Item' },
     '@/hooks/usePantryItems': { usePantryItems: () => ({ items: [], loading: false, error: 'err_load_items', retry: () => retries++ }) },
   });
@@ -44,7 +49,7 @@ test('empty pantry offers add navigation and populated pantry opens the selected
   const navigation = [];
   let items = [];
   const { default: Screen } = load('app/(tabs)/index.tsx', { ...shared,
-    'expo-router': { useRouter: () => ({ push: route => navigation.push(route) }) },
+    ...routerStubs(route => navigation.push(route)),
     '@expo/vector-icons': { Ionicons: 'Icon' },
     '@/components/EmptyState': { EmptyState: 'EmptyState' }, '@/components/PantryItem': { PantryItem: 'Item' },
     '@/hooks/usePantryItems': { usePantryItems: () => ({ items, loading: false, error: null }) },
@@ -60,6 +65,24 @@ test('empty pantry offers add navigation and populated pantry opens the selected
   act(() => row.props.onPress());
   assert.equal(navigation.at(-1), '/edit-item/selected-item');
   act(() => renderer.unmount());
+});
+
+test('fast repeated pantry row taps open one edit screen, even on different rows (KAN-33)', () => {
+  const navigation = [];
+  const items = [{ id: 'a' }, { id: 'b' }];
+  const { default: Screen } = load('app/(tabs)/index.tsx', { ...shared,
+    ...routerStubs(route => navigation.push(route)),
+    '@expo/vector-icons': { Ionicons: 'Icon' },
+    '@/components/EmptyState': { EmptyState: 'EmptyState' }, '@/components/PantryItem': { PantryItem: 'Item' },
+    '@/hooks/usePantryItems': { usePantryItems: () => ({ items, loading: false, error: null }) },
+  });
+  let renderer;
+  act(() => { renderer = create(React.createElement(Screen)); });
+  try {
+    const tap = item => renderer.root.findByType('FlatList').props.renderItem({ item }).props.onPress();
+    act(() => { tap(items[0]); tap(items[0]); tap(items[1]); });
+    assert.deepEqual(navigation, ['/edit-item/a']);
+  } finally { act(() => renderer.unmount()); }
 });
 
 test('email-confirmation signup shows instructions and does not navigate to the pantry', async () => {

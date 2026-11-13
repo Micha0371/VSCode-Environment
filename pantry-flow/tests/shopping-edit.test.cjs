@@ -78,10 +78,58 @@ test('remove asks for confirmation and deletes only on confirm', async () => {
 test('a failed remove shows the translated error and stays open', async () => {
   const { renderer, log, by, field } = render({ state: { deleteItem: async () => { throw { code: '42501' }; } } });
   try {
+    act(() => field().props.onChangeText('Oat milk'));
     act(() => by('shopping-edit-remove').props.onPress());
     await act(async () => destructive(log).onPress());
     assert.equal(field().props.error, 'err_shopping_permission');
+    assert.equal(field().props.value, 'Oat milk');
     assert.equal(log.back, 0);
+  } finally { act(() => renderer.unmount()); }
+});
+
+// The provider drops the row from its state before deleteItem resolves (KAN-35).
+function renderRemoval(deleteResult) {
+  const removal = { present: true, deleted: [] };
+  const view = render({ state: {
+    getItem: () => (removal.present ? existing : null),
+    deleteItem: id => {
+      removal.deleted.push(id);
+      removal.present = false;
+      view.renderer.update(React.createElement(view.renderer.root.type));
+      return deleteResult.promise;
+    } } });
+  const missingShown = () => view.renderer.root.findAll(n =>
+    (n.type === 'Text' && /err_shopping_missing/.test(JSON.stringify(n.props.children)))
+    || (n.type === 'Button' && ['common_retry', 'common_back'].includes(n.props.label))).length > 0;
+  return { ...view, removal, missingShown };
+}
+
+test('a successful remove closes without showing or announcing the missing state', async () => {
+  const d = deferred();
+  const { renderer, log, by, removal, missingShown } = renderRemoval(d);
+  try {
+    act(() => by('shopping-edit-remove').props.onPress());
+    let pending;
+    act(() => { pending = destructive(log).onPress(); });
+    assert.deepEqual(removal.deleted, ['1']);
+    assert.equal(missingShown(), false, 'no missing state while the delete completes');
+    assert.equal(renderer.root.findAll(n => n.props.accessibilityRole === 'alert').length, 0);
+    await act(async () => { d.resolve(); await d.promise; await pending; });
+    assert.equal(log.back, 1);
+    assert.equal(missingShown(), false, 'no missing state while the screen closes');
+  } finally { act(() => renderer.unmount()); }
+});
+
+test('a remove that fails after the row was dropped shows the missing state', async () => {
+  const d = deferred();
+  const { renderer, log, by, missingShown } = renderRemoval(d);
+  try {
+    act(() => by('shopping-edit-remove').props.onPress());
+    let pending;
+    act(() => { pending = destructive(log).onPress(); });
+    await act(async () => { d.reject({ code: 'PGRST116' }); await pending; });
+    assert.equal(log.back, 0);
+    assert.equal(missingShown(), true);
   } finally { act(() => renderer.unmount()); }
 });
 

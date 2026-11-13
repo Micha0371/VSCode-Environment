@@ -33,9 +33,11 @@ screens, the low/out prompt and the Android journey (steps 1–5).
 | SHOP-STATE-04 | Unmount, sign-out, household change and superseded reads do not apply stale results | Provider-level unit tests in shopping-state.test.cjs | Aborting an HTTP request mid-flight is not asserted, since it cannot show whether the server committed |
 | SHOP-UI-01 | The Shopping tab is gated and placed between Pantry and Settings; loading, empty, error/retry and sectioned list states | navigation.test.cjs, shopping-screen.test.cjs (unit) | Android loading-failure/retry, empty and sectioned states: SHOP-E2E-01 |
 | SHOP-UI-02 | Inline add, complete/reopen, rename and confirmed remove with locks, translated errors and keyboard-safe tap settings; an add error clears as soon as the field is edited; a failed complete/reopen error names its item and disappears once that item is removed or changed; household changes reset drafts/locks/feedback and discard obsolete add/toggle completions, including leaving and returning to the same household | shopping-screen.test.cjs, shopping-edit.test.cjs, components/shopping-add.test.tsx; leaving the edit screen during a save or remove abandons its callbacks through the shared `useItemMutation` (mutation.test.cjs) | Android first taps with the keyboard open on Add, a row circle, edit Save and Remove; tab-switch draft; confirmed remove: SHOP-E2E-01. An add error arriving after the field was edited still shows under the new text: KAN-37 (shopping add error shown under text edited while the add was pending) |
+| SHOP-UI-03 | A tap on a Pantry or Shopping row opens exactly one edit screen: further taps, on the same or another row, are ignored until the list is focused again, with a one-second fallback when no navigation took the focus away (KAN-33) | single-open.test.cjs (hook rules, fake timers), shopping-screen.test.cjs and screens.test.cjs (repeated row taps) | Android fast double tap on a Shopping and a Pantry row, then Cancel leaves no second edit screen: SHOP-E2E-01. The Shopping check was shown failing on the pre-fix APK; that run stopped there, so the Pantry check has only run green. A tap after the fallback during a navigation slower than one second could still open a second screen |
+| SHOP-UI-04 | A successful remove closes the Shopping or Pantry edit screen without rendering or announcing the "no longer available" state; a missing item, a remove failing after the row was dropped, and a remove failing otherwise (form, values and error kept) behave as before (KAN-35) | shopping-edit.test.cjs, edit-item-remove.test.cjs, with a successful delete that drops the row before it resolves, as both providers do. The "fails after the row was dropped" case is a provider behavior of Shopping only (a missing row); for Pantry it guards the screen contract | The flash lasts one dismissal animation and is not asserted on a device |
 | SHOP-LINK-01 | The low/out prompt fires only on a change to low or out; Yes adds once, linked; No or dismiss adds nothing; the pantry save is never reverted; no prompt, add or failure notice once the edit screen has closed or lost focus | edit-item-prompt.test.cjs, mutation.test.cjs, pantry-shopping.test.cjs (unit) | Android prompt wording, Back as Not now, Not now, Add and the duplicate notice: SHOP-E2E-01. A lost native alert (KAN-36) is not reproducible |
 | SHOP-LINK-02 | Shopping rename/complete/reopen/remove never change pantry data; pantry status changes create no shopping items; open duplicates are rejected with the duplicate key, a completed duplicate does not block, reopening into an open duplicate fails; pantry deletion keeps a named standalone shopping item | pantry-shopping.integration.ts against real local Auth/PostgREST with ordinary clients | Local stack only |
-| SHOP-E2E-01 | Android release-mode test APK: the low/out prompt (Back, Not now, Add, duplicate notice), keyboard-open add, toggle, rename and remove, duplicate message cleared by editing, complete/reopen, remove cancel/confirm, tab-switch draft, cold restart, shopping load failure/retry and another household's empty list | `.maestro/slice-2-shopping.yaml` on real local Auth/PostgREST through the loopback proxy | Emulator in the CI Android job; physical phone results in the evidence section below |
+| SHOP-E2E-01 | Android release-mode test APK: the low/out prompt (Back, Not now, Add, duplicate notice), a fast double tap on a Shopping and a Pantry row opening one edit screen, keyboard-open add, toggle, rename and remove, duplicate message cleared by editing, complete/reopen, remove cancel/confirm, tab-switch draft, cold restart, shopping load failure/retry and another household's empty list | `.maestro/slice-2-shopping.yaml` on real local Auth/PostgREST through the loopback proxy | Emulator in the CI Android job; physical phone results in the evidence section below |
 | SHOP-E2E-02 | The journey's persisted outcome: exact shopping rows, the pantry link, completion state, the pantry row as last saved, and nothing for the other household | `e2e-fixtures.ts shopping-verify` with ordinary clients after the flow | Local stack only |
 | DB-ENV-02 | Every migration from 00004 on applies without `extensions` on search_path, as in the hosted CLI push session | migration-push-search-path.test.cjs (PGlite, fast job), with a negative control for an unqualified `uuid_generate_v4()` | Models only search_path resolution, not every hosted login-role privilege; added after the 2026-11-11 hosted 00004 push failed and rolled back |
 | DB-ENV-01 | Running PostgreSQL major must be 17 | Separate environment.test.sql, plan(1), in existing database CI job | The identical assertion was demonstrated failing on separate local 15.19; update deliberately with future major upgrades |
@@ -116,6 +118,34 @@ Still open beyond Slice 2:
 - Low-priority follow-ups:
   - KAN-36 (low/out prompt follow-ups: Save-then-Delete test and lost-alert busy lock);
   - KAN-37 (shopping add error shown under text edited while the add was pending).
+
+### KAN-33 and KAN-35 Android evidence
+
+On 2026-11-13 the same phone (Xiaomi 23122PCD1G, Android 16, arm64-v8a) ran
+over USB ADB; Wi-Fi ADB had dropped the Maestro driver twice that night.
+
+- **Red:** the pre-fix APK from the step 5 evidence (SHA-256 starting
+  `2B06821F`) with the new flow. Slice 1.1 passed; the shopping journey failed
+  at the double-tap check, because after Cancel a second "Edit item" screen for
+  Milk was still open.
+- **Green:** an APK built from e8a6995 (SHA-256
+  `ad1786f6d125336003ee3fc5aa4680414780c646a2065cc090786eddeba7f847`) with the
+  flow from the KAN-33/KAN-35 evidence commit. `npm run test:e2e` exited 0:
+  Slice 1.1 with verify, the shopping journey (both double taps) with
+  shopping-verify, the four confirmation flows, the logcat check and cleanup.
+
+Two earlier red attempts over Wi-Fi ADB broke inside Slice 1.1 (a retry that
+could not reach the stack while a build ran in parallel, then a stalled Maestro
+driver) and are not counted.
+
+After the green phone run, the final review raised both "no second edit screen"
+waits from 5 s to 15 s. That change has not run on the phone; it ran on the
+emulator in [CI run 43334319720](https://github.com/Micha0371/VSCode-Environment/actions/runs/43334319720)
+on 50352d3, which passed all four jobs, including the Android job with both
+double taps. The Pantry double tap stays on
+the name text "Milk", which the phone run showed opening the row; the row's
+pressable combines several texts into one label, so `id` plus `text: Milk`
+would not match it.
 
 ## Slice 1.1 baseline coverage
 
