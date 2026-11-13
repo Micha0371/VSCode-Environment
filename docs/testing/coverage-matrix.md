@@ -139,8 +139,10 @@ could not reach the stack while a build ran in parallel, then a stalled Maestro
 driver) and are not counted.
 
 After the green phone run, the final review raised both "no second edit screen"
-waits from 5 s to 15 s. That change has not run on the phone; the emulator run
-on the final head covers it and has not run yet. The Pantry double tap stays on
+waits from 5 s to 15 s. That change has not run on the phone; it ran on the
+emulator in [CI run 43334319720](https://github.com/Micha0371/VSCode-Environment/actions/runs/43334319720)
+on 50352d3, which passed all four jobs, including the Android job with both
+double taps. The Pantry double tap stays on
 the name text "Milk", which the phone run showed opening the row; the row's
 pressable combines several texts into one label, so `id` plus `text: Milk`
 would not match it.
